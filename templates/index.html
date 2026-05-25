@@ -6,6 +6,7 @@
 <title>FeederSight — EV Grid Intelligence</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0f1117; color: #e0e0e0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
@@ -199,6 +200,32 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #3e4460; border-radius: 2px; }
 
+/* ── Heatmap legend ── */
+#heatmap-legend { position: absolute; bottom: 36px; left: 12px; z-index: 999; background: rgba(15,17,23,0.88); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 8px 12px; display: none; min-width: 200px; backdrop-filter: blur(4px); }
+#heatmap-legend.visible { display: block; }
+.legend-title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: #aaa; margin-bottom: 5px; }
+.legend-bar { height: 10px; border-radius: 5px; width: 100%; margin-bottom: 4px; }
+.legend-ticks { display: flex; justify-content: space-between; font-size: 10px; color: #888; }
+
+/* ── Flow arrows ── */
+.flow-arrow { font-size: 14px; opacity: 0.75; animation: flow-pulse 2.4s ease-in-out infinite; }
+@keyframes flow-pulse { 0%,100%{opacity:0.4;transform:scale(0.9)} 50%{opacity:0.9;transform:scale(1.1)} }
+
+/* ── Simulate panel ── */
+.sim-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 4px; }
+.sim-card { background: #252836; border: 1px solid #2e3147; border-radius: 10px; padding: 10px 8px; text-align: center; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+.sim-card:hover { border-color: #4ea8de; background: #1e2535; }
+.sim-card.active { border-color: #4ea8de; background: #1a2d45; }
+.sim-icon { font-size: 24px; margin-bottom: 4px; }
+.sim-name { font-size: 12px; font-weight: 700; color: #e0e0e0; }
+.sim-sub { font-size: 10px; color: #666; margin-top: 2px; }
+.sim-stat-box { background: #252836; border: 1px solid #2e3147; border-radius: 8px; padding: 9px 10px; }
+.sim-stat-val { font-size: 20px; font-weight: 700; color: #fff; }
+.sim-stat-key { font-size: 10px; color: #666; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+.sim-problem-item { display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px solid #2e3147; font-size: 12px; color: #ccc; line-height: 1.4; }
+.sim-problem-item:last-child { border-bottom: none; }
+.sim-problem-dot { width: 6px; height: 6px; border-radius: 50%; background: #f97316; margin-top: 5px; flex-shrink: 0; }
+
 /* ── Winter panel ── */
 .winter-season { border-bottom: 1px solid #2e3147; padding: 8px 0; }
 .winter-season:last-child { border-bottom: none; }
@@ -346,8 +373,19 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
 <!-- ── Main ─────────────────────────────────────────────────────────────── -->
 <div id="main">
   <div id="map" style="position:relative">
+    <!-- Gradient legend -->
+    <div id="heatmap-legend">
+      <div class="legend-title" id="legend-title">Grid stress intensity</div>
+      <div class="legend-bar" id="legend-bar"></div>
+      <div class="legend-ticks" id="legend-ticks">
+        <span>Safe</span><span>Elevated</span><span>Near Limit</span><span>Overloaded</span>
+      </div>
+    </div>
     <!-- Floating map layer toggles -->
     <div id="map-controls">
+      <button class="map-toggle-btn" id="btn-heatmap" onclick="toggleHeatmap()">
+        <span class="tog-dot"></span>🌡️ Heatmap
+      </button>
       <button class="map-toggle-btn" id="btn-stations" onclick="mapToggle('stations','btn-stations')">
         <span class="tog-dot"></span>🔌 Charging stations
       </button>
@@ -369,6 +407,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
       <div class="tab active" onclick="showTab('overview')">Overview</div>
       <div class="tab" onclick="showTab('nearby')">Near Me</div>
       <div class="tab" onclick="showTab('winter')">Winter</div>
+      <div class="tab" onclick="showTab('simulate')">Simulate</div>
       <div class="tab" onclick="showTab('ml')">ML</div>
       <div class="tab" onclick="showTab('reports')">Reports</div>
       <div class="tab" onclick="showTab('profile')">Profile</div>
@@ -502,6 +541,97 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
         </div>
       </div>
 
+      <!-- SIMULATE -->
+      <div class="panel-view" id="view-simulate">
+
+        <!-- Scenario picker -->
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:#666;margin-bottom:8px">Choose a weather scenario</div>
+        <div class="sim-grid" id="sim-scenario-grid">
+          <div class="sim-card" id="scard-winter_extreme" onclick="selectScenario('winter_extreme')">
+            <div class="sim-icon">🥶</div>
+            <div class="sim-name">Winter Extreme</div>
+            <div class="sim-sub">−25°C blizzard</div>
+          </div>
+          <div class="sim-card" id="scard-cold_snap" onclick="selectScenario('cold_snap')">
+            <div class="sim-icon">❄️</div>
+            <div class="sim-name">Cold Snap</div>
+            <div class="sim-sub">−15°C freeze</div>
+          </div>
+          <div class="sim-card" id="scard-ice_storm" onclick="selectScenario('ice_storm')">
+            <div class="sim-icon">🌨️</div>
+            <div class="sim-name">Ice Storm</div>
+            <div class="sim-sub">−5°C freezing rain</div>
+          </div>
+          <div class="sim-card" id="scard-heat_wave" onclick="selectScenario('heat_wave')">
+            <div class="sim-icon">🌡️</div>
+            <div class="sim-name">Heat Wave</div>
+            <div class="sim-sub">+38°C summer peak</div>
+          </div>
+          <div class="sim-card" id="scard-high_wind" onclick="selectScenario('high_wind')">
+            <div class="sim-icon">💨</div>
+            <div class="sim-name">High Wind</div>
+            <div class="sim-sub">90 km/h gusts</div>
+          </div>
+          <div class="sim-card" id="scard-heavy_rain" onclick="selectScenario('heavy_rain')">
+            <div class="sim-icon">🌧️</div>
+            <div class="sim-name">Heavy Rain</div>
+            <div class="sim-sub">50 mm/h flood risk</div>
+          </div>
+        </div>
+
+        <!-- Results (hidden until scenario selected) -->
+        <div id="sim-results" style="display:none;margin-top:12px">
+
+          <!-- Active scenario banner -->
+          <div id="sim-active-banner" style="display:flex;align-items:center;gap:8px;background:#1a2535;border:1px solid #2e4060;border-radius:8px;padding:10px 12px;margin-bottom:10px">
+            <span id="sim-banner-icon" style="font-size:22px"></span>
+            <div style="flex:1">
+              <div id="sim-banner-label" style="font-weight:700;font-size:14px;color:#fff"></div>
+              <div id="sim-banner-desc" style="font-size:11px;color:#888;margin-top:1px"></div>
+            </div>
+            <button onclick="clearSimulation()" style="background:none;border:1px solid #3e4460;border-radius:6px;color:#888;cursor:pointer;font-size:11px;padding:3px 8px">Clear</button>
+          </div>
+
+          <!-- Grid impact -->
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:#666;margin-bottom:6px">Grid impact</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+            <div class="sim-stat-box">
+              <div class="sim-stat-val" id="sim-overloaded">—</div>
+              <div class="sim-stat-key">FSAs overloaded</div>
+            </div>
+            <div class="sim-stat-box">
+              <div class="sim-stat-val" id="sim-delta" style="color:#f97316">—</div>
+              <div class="sim-stat-key">vs current</div>
+            </div>
+            <div class="sim-stat-box">
+              <div class="sim-stat-val" id="sim-risk-ratio">—</div>
+              <div class="sim-stat-key">mean risk ratio</div>
+            </div>
+            <div class="sim-stat-box">
+              <div class="sim-stat-val" id="sim-wfactor">—</div>
+              <div class="sim-stat-key">weather factor</div>
+            </div>
+          </div>
+
+          <!-- Station impact -->
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:#666;margin-bottom:6px">Station impact</div>
+          <div style="margin-bottom:12px">
+            <div class="bar-row"><div class="bar-label" style="color:#22c55e">Operational</div><div class="bar-track"><div class="bar-fill" id="sim-bar-op" style="background:#22c55e;width:0%"></div></div><div class="bar-val" id="sim-cnt-op">—</div></div>
+            <div class="bar-row"><div class="bar-label" style="color:#facc15">Degraded</div><div class="bar-track"><div class="bar-fill" id="sim-bar-dg" style="background:#facc15;width:0%"></div></div><div class="bar-val" id="sim-cnt-dg">—</div></div>
+            <div class="bar-row"><div class="bar-label" style="color:#f97316">High Risk</div><div class="bar-track"><div class="bar-fill" id="sim-bar-hr" style="background:#f97316;width:0%"></div></div><div class="bar-val" id="sim-cnt-hr">—</div></div>
+            <div class="bar-row"><div class="bar-label" style="color:#9ca3af">Offline</div><div class="bar-track"><div class="bar-fill" id="sim-bar-of" style="background:#9ca3af;width:0%"></div></div><div class="bar-val" id="sim-cnt-of">—</div></div>
+          </div>
+
+          <!-- Problems & outcomes -->
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:#666;margin-bottom:6px">Problems &amp; outcomes</div>
+          <div id="sim-problems"></div>
+        </div>
+
+        <div style="font-size:11px;color:#555;margin-top:12px;line-height:1.5">
+          Simulation recalculates every FSA and station using the scenario's weather factor. Map overlay shows simulated risk — toggle off with Clear.
+        </div>
+      </div>
+
       <!-- ML MODELS -->
       <div class="panel-view" id="view-ml">
         <div class="card">
@@ -632,12 +762,110 @@ function getActiveProfile() {
 
 // ── Map ───────────────────────────────────────────────────────────────────
 const map = L.map('map', {center:[43.75,-79.45], zoom:9});
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:19}).addTo(map);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/">CARTO</a>',maxZoom:19}).addTo(map);
 
-const layers = {fsa:L.layerGroup(), stations:L.layerGroup(), recommended:L.layerGroup(), anomaly:L.layerGroup()};
+const layers = {fsa:L.layerGroup(), stations:L.layerGroup(), recommended:L.layerGroup(), anomaly:L.layerGroup(), sim:L.layerGroup()};
 layers.fsa.addTo(map);
 layers.recommended.addTo(map);
 layers.anomaly.addTo(map);
+
+// ── Heatmap layer ─────────────────────────────────────────────────────────
+const HEAT_GRADIENT_NORMAL   = {0.0:'#00c853', 0.35:'#ffeb3b', 0.6:'#ff6d00', 0.8:'#d50000', 1.0:'#4a0000'};
+const HEAT_GRADIENT_COLD     = {0.0:'#e3f2fd', 0.3:'#64b5f6', 0.6:'#1565c0', 0.85:'#880e4f', 1.0:'#1a0030'};
+const HEAT_GRADIENT_HEAT     = {0.0:'#fff9c4', 0.3:'#ffcc02', 0.6:'#f4730a', 0.85:'#b71c1c', 1.0:'#3e0000'};
+const HEAT_GRADIENT_WIND     = {0.0:'#f3e5f5', 0.3:'#ce93d8', 0.6:'#7b1fa2', 0.85:'#4a148c', 1.0:'#12005e'};
+const HEAT_GRADIENT_RAIN     = {0.0:'#e0f7fa', 0.3:'#4dd0e1', 0.6:'#00838f', 0.85:'#006064', 1.0:'#001a1e'};
+
+const SCENARIO_GRADIENT = {
+  winter_extreme: HEAT_GRADIENT_COLD, cold_snap: HEAT_GRADIENT_COLD,
+  ice_storm: HEAT_GRADIENT_COLD,      heat_wave: HEAT_GRADIENT_HEAT,
+  high_wind: HEAT_GRADIENT_WIND,      heavy_rain: HEAT_GRADIENT_RAIN,
+};
+
+function _buildHeatPoints(areasData, valueKey) {
+  const vals = areasData.map(a => a[valueKey] || 0);
+  const maxVal = Math.max(...vals, 0.001);
+  return areasData
+    .filter(a => a.latitude && a.longitude)
+    .map(a => [a.latitude, a.longitude, Math.min((a[valueKey]||0) / maxVal, 1.0)]);
+}
+
+let _heatLayer = null;
+let _heatOn = false;
+let _flowLayer = L.layerGroup();
+
+function _makeHeatLayer(points, gradient) {
+  return L.heatLayer(points, {
+    radius: 38, blur: 30, maxZoom: 13, max: 1.0,
+    gradient: gradient
+  });
+}
+
+function _updateLegend(gradient, title, ticks) {
+  const stops = Object.entries(gradient)
+    .map(([pos, col]) => `${col} ${(parseFloat(pos)*100).toFixed(0)}%`).join(', ');
+  document.getElementById('legend-bar').style.background = `linear-gradient(to right, ${stops})`;
+  document.getElementById('legend-title').textContent = title || 'Grid stress intensity';
+  if (ticks) {
+    document.getElementById('legend-ticks').innerHTML =
+      ticks.map(t => `<span>${t}</span>`).join('');
+  }
+  document.getElementById('heatmap-legend').classList.add('visible');
+}
+
+function toggleHeatmap() {
+  const btn = document.getElementById('btn-heatmap');
+  if (_heatOn) {
+    if (_heatLayer) map.removeLayer(_heatLayer);
+    document.getElementById('heatmap-legend').classList.remove('visible');
+    btn.classList.remove('on');
+    _heatOn = false;
+  } else {
+    const points = _buildHeatPoints(AREAS, 'risk_ratio');
+    _heatLayer = _makeHeatLayer(points, HEAT_GRADIENT_NORMAL);
+    _heatLayer.addTo(map);
+    _updateLegend(HEAT_GRADIENT_NORMAL, 'Grid stress — risk ratio',
+      ['Safe (<0.65)', 'Elevated', 'Near Limit', 'Overloaded (>1.0)']);
+    btn.classList.add('on');
+    _heatOn = true;
+  }
+}
+
+// ── Flow arrows (wind/storm direction effect) ─────────────────────────────
+const SCENARIO_FLOW = {
+  winter_extreme: {angle: 225, symbol: '❄', color: '#93c5fd', count: 22},
+  cold_snap:      {angle: 210, symbol: '❄', color: '#bfdbfe', count: 16},
+  ice_storm:      {angle: 200, symbol: '🧊', color: '#7dd3fc', count: 20},
+  heat_wave:      {angle:  90, symbol: '☀', color: '#fcd34d', count: 18},
+  high_wind:      {angle: 260, symbol: '➤', color: '#d8b4fe', count: 28},
+  heavy_rain:     {angle: 180, symbol: '💧', color: '#67e8f9', count: 20},
+};
+
+function _addFlowArrows(scenarioKey) {
+  _flowLayer.clearLayers();
+  const cfg = SCENARIO_FLOW[scenarioKey];
+  if (!cfg) return;
+
+  // Seed random but stable positions across GTA bounds
+  const bounds = {latMin:43.45, latMax:44.05, lonMin:-79.95, lonMax:-78.85};
+  const rng = (seed) => { let x = Math.sin(seed) * 43758.5453; return x - Math.floor(x); };
+  for (let i = 0; i < cfg.count; i++) {
+    const lat = bounds.latMin + rng(i * 7.3 + 1) * (bounds.latMax - bounds.latMin);
+    const lon = bounds.lonMin + rng(i * 7.3 + 2) * (bounds.lonMax - bounds.lonMin);
+    const delay = rng(i * 7.3 + 3) * 2400;
+    const icon = L.divIcon({
+      html: `<div class="flow-arrow" style="color:${cfg.color};animation-delay:${delay.toFixed(0)}ms;transform:rotate(${cfg.angle}deg)">${cfg.symbol}</div>`,
+      className: '', iconSize: [20, 20], iconAnchor: [10, 10]
+    });
+    L.marker([lat, lon], {icon, interactive: false}).addTo(_flowLayer);
+  }
+  _flowLayer.addTo(map);
+}
+
+function _clearFlowArrows() {
+  _flowLayer.clearLayers();
+  if (map.hasLayer(_flowLayer)) map.removeLayer(_flowLayer);
+}
 
 // FSA dots — area name first, FSA code as small tag
 const urgCounts = {};
@@ -1197,14 +1425,277 @@ function mapToggle(layerName, btnId) {
 }
 
 // ── Tab switching ─────────────────────────────────────────────────────────
-const TAB_VIEWS = ['overview','nearby','winter','station','machine','ml','reports','profile'];
+const TAB_VIEWS = ['overview','nearby','winter','simulate','station','machine','ml','reports','profile'];
 function showTab(name) {
   TAB_VIEWS.forEach(t=>{ document.getElementById(`view-${t}`).classList.toggle('active', t===name); });
   document.querySelectorAll('#panel-tabs .tab').forEach((el,i)=>{
-    el.classList.toggle('active',['overview','nearby','winter','ml','reports','profile'][i]===name);
+    el.classList.toggle('active',['overview','nearby','winter','simulate','ml','reports','profile'][i]===name);
   });
   if (name==='reports') loadReports();
   if (name==='winter') loadWinterHistory();
+}
+
+// ── Simulation engine ─────────────────────────────────────────────────────
+const SIM_SCENARIOS = {
+  winter_extreme: {
+    label: 'Winter Extreme', icon: '🥶', accent: '#3b82f6',
+    temp_c: -25, weather_factor: 1.45,
+    station_base: 0.40, event_boost: 0.30, dc_mult: 1.5,
+    description: '−25°C blizzard — heavy snow, ice on lines, extreme battery drain',
+    problems: [
+      'Battery efficiency drops ~40% — range cut by 35–50 km per charge',
+      'DC fast chargers 50% more likely to trip due to power fluctuations',
+      'Grid demand surges from heating + EV loads simultaneously',
+      'Ice accumulation can physically damage connector ports and screens',
+      'Snowdrifts may block access to outdoor charging stations',
+      'Pre-conditioning your battery on shore power strongly recommended'
+    ]
+  },
+  cold_snap: {
+    label: 'Cold Snap', icon: '❄️', accent: '#60a5fa',
+    temp_c: -15, weather_factor: 1.35,
+    station_base: 0.28, event_boost: 0.18, dc_mult: 1.35,
+    description: '−15°C overnight freeze — typical worst-case Toronto January night',
+    problems: [
+      'Battery efficiency drops ~25% — plan for shorter range than usual',
+      'Level 2 AC chargers may charge up to 15% slower in extreme cold',
+      'Grid heating load pushes several FSAs near capacity',
+      'Exposed connector ports may freeze if stations unused for hours',
+      'Lithium-ion cells accept charge slower below −10°C — expect longer sessions'
+    ]
+  },
+  ice_storm: {
+    label: 'Ice Storm', icon: '🌨️', accent: '#0ea5e9',
+    temp_c: -5, weather_factor: 1.25,
+    station_base: 0.52, event_boost: 0.38, dc_mult: 1.6,
+    description: '−5°C freezing rain — highest station outage risk of any scenario',
+    problems: [
+      'Ice coating on overhead lines causes the most power outages per year in GTA',
+      'Freezing rain on connector ports and display screens causes hardware failures',
+      'Road closures during active storms may make many stations unreachable',
+      'DC fast charger outage risk nearly doubles vs normal conditions',
+      'Grid voltage drops from line damage can forcibly terminate active charging sessions',
+      'Avoid outdoor charging during active freezing rain where possible'
+    ]
+  },
+  heat_wave: {
+    label: 'Heat Wave', icon: '🌡️', accent: '#ef4444',
+    temp_c: 38, weather_factor: 1.25,
+    station_base: 0.25, event_boost: 0.18, dc_mult: 1.3,
+    description: '+38°C summer peak — AC surge + thermal battery limits',
+    problems: [
+      'Simultaneous AC + EV charging pushes urban grid feeders near their limits',
+      'Battery thermal management throttles fast charging speed above 35°C',
+      'Prolonged heat reduces long-term battery capacity if cells stay hot',
+      'Downtown and dense FSAs face highest stress from building AC loads',
+      'Avoid charging between 2–6pm when grid and temperature both peak',
+      'Charge overnight — grid load and battery temps are both lower after midnight'
+    ]
+  },
+  high_wind: {
+    label: 'High Wind', icon: '💨', accent: '#8b5cf6',
+    temp_c: 10, weather_factor: 1.10,
+    station_base: 0.45, event_boost: 0.35, dc_mult: 1.3,
+    description: '90 km/h gusts — highest risk of line damage and widespread power loss',
+    problems: [
+      'Fallen trees on overhead lines are the #1 cause of multi-station outages in GTA',
+      'Flying debris can physically damage outdoor charger enclosures and screens',
+      'Power line surges and sags during gusts forcibly interrupt active charging sessions',
+      'Some outdoor DC fast chargers auto-shutdown for safety during extreme winds',
+      'Gusts increase even if no storm — check grid status before a long drive',
+      'Underground cable faults from wind events take longer to repair than overhead damage'
+    ]
+  },
+  heavy_rain: {
+    label: 'Heavy Rain', icon: '🌧️', accent: '#14b8a6',
+    temp_c: 18, weather_factor: 1.08,
+    station_base: 0.25, event_boost: 0.18, dc_mult: 1.2,
+    description: '50 mm/hr — flood risk to ground-level equipment, moderate grid impact',
+    problems: [
+      'Underground cable vaults flood and trip breakers serving nearby chargers',
+      'Outdoor DC fast chargers are rated for rain but not for standing water',
+      'Parking lot flooding physically blocks access to many station locations',
+      'Grid load is actually lower than cold scenarios — no heating or cooling surge',
+      'Most outages resolve within hours once rain stops and vaults drain',
+      'Check station status before driving — real-time map reflects conditions'
+    ]
+  }
+};
+
+const SIM_RISK_COLOR = {
+  'Overload':   '#dc2626',
+  'Near Limit': '#f97316',
+  'Elevated':   '#facc15',
+  'Safe':       '#22c55e',
+};
+
+let _activeSim = null;
+
+function _simRiskLevel(ratio) {
+  if (ratio > 1.0)  return 'Overload';
+  if (ratio > 0.85) return 'Near Limit';
+  if (ratio > 0.65) return 'Elevated';
+  return 'Safe';
+}
+
+function runSimulation(key) {
+  const s = SIM_SCENARIOS[key];
+  const wf = s.weather_factor;
+
+  const fsaResults = AREAS.map(a => {
+    const evLoad = (a.ev_count||0) * (a.peak_charging_share||0.12) * (a.avg_charger_power_kw||7.2) * wf;
+    const totalLoad = (a.base_load_kw||0) + evLoad;
+    const cap = a.feeder_capacity_kw || 1;
+    const simRatio = totalLoad / cap;
+    return { ...a, sim_ratio: simRatio, sim_level: _simRiskLevel(simRatio) };
+  });
+
+  const stationResults = STATIONS.map(st => {
+    if (!st.latitude || !st.longitude) return { ...st, sim_status: 'Operational' };
+    const isDC = (st.type||'').includes('DC');
+    const mult = isDC ? s.dc_mult : 1.0;
+    const alreadyDown = (st.status||'').toLowerCase().includes('not started');
+    const prob = alreadyDown ? 1.0 : Math.min((s.station_base + s.event_boost) * mult, 0.95);
+    const simStatus = prob >= 1.0 ? 'Offline'
+      : prob >= 0.55 ? 'Offline'
+      : prob >= 0.40 ? 'High Risk'
+      : prob >= 0.22 ? 'Degraded'
+      : 'Operational';
+    return { ...st, sim_prob: prob, sim_status: simStatus };
+  });
+
+  return { key, fsaResults, stationResults };
+}
+
+function selectScenario(key) {
+  document.querySelectorAll('.sim-card').forEach(el => el.classList.remove('active'));
+  document.getElementById('scard-'+key).classList.add('active');
+
+  const result = runSimulation(key);
+  _activeSim = key;
+  renderSimOverlay(result);
+  renderSimResults(result);
+  document.getElementById('sim-results').style.display = 'block';
+
+  // Heatmap: switch to scenario gradient and use sim_ratio as intensity
+  const grad = SCENARIO_GRADIENT[key] || HEAT_GRADIENT_NORMAL;
+  if (_heatLayer) map.removeLayer(_heatLayer);
+  const points = _buildHeatPoints(result.fsaResults, 'sim_ratio');
+  _heatLayer = _makeHeatLayer(points, grad);
+  _heatLayer.addTo(map);
+  const s = SIM_SCENARIOS[key];
+  _updateLegend(grad, `${s.icon} ${s.label} — grid stress`,
+    ['Safe', 'Elevated', 'Near Limit', 'Overloaded']);
+  document.getElementById('btn-heatmap').classList.add('on');
+  _heatOn = true;
+
+  // Flow arrows
+  _addFlowArrows(key);
+}
+
+function clearSimulation() {
+  _activeSim = null;
+  layers.sim.clearLayers();
+  if (map.hasLayer(layers.sim)) map.removeLayer(layers.sim);
+  document.querySelectorAll('.sim-card').forEach(el => el.classList.remove('active'));
+  document.getElementById('sim-results').style.display = 'none';
+
+  // Restore normal heatmap if it was on, else remove it
+  _clearFlowArrows();
+  if (_heatLayer) map.removeLayer(_heatLayer);
+  if (_heatOn) {
+    const points = _buildHeatPoints(AREAS, 'risk_ratio');
+    _heatLayer = _makeHeatLayer(points, HEAT_GRADIENT_NORMAL);
+    _heatLayer.addTo(map);
+    _updateLegend(HEAT_GRADIENT_NORMAL, 'Grid stress — risk ratio',
+      ['Safe (<0.65)', 'Elevated', 'Near Limit', 'Overloaded (>1.0)']);
+  } else {
+    document.getElementById('heatmap-legend').classList.remove('visible');
+    document.getElementById('btn-heatmap').classList.remove('on');
+  }
+}
+
+function renderSimOverlay(result) {
+  layers.sim.clearLayers();
+
+  // FSA circles — larger and more opaque so they clearly overlay the base
+  result.fsaResults.forEach(a => {
+    if (!a.latitude || !a.longitude) return;
+    const col = SIM_RISK_COLOR[a.sim_level] || '#888';
+    const areaName = (a.area && a.area !== a.fsa) ? a.area : a.fsa;
+    L.circleMarker([a.latitude, a.longitude], {
+      radius: 11, color: '#fff', weight: 1.5,
+      fillColor: col, fillOpacity: 0.82
+    })
+    .bindTooltip(`[SIM] ${areaName} — ${a.sim_level} (${a.sim_ratio.toFixed(2)}×)`)
+    .bindPopup(`<div style="font-family:-apple-system,sans-serif;font-size:13px;min-width:200px">
+      <div style="font-size:11px;color:#6b7280;margin-bottom:4px">SIMULATION — ${SIM_SCENARIOS[result.key].label}</div>
+      <b style="font-size:14px">${areaName}</b>
+      <div style="font-weight:700;font-size:13px;color:${col};margin:6px 0">${a.sim_level} (${a.sim_ratio.toFixed(2)}× capacity)</div>
+      <div style="font-size:12px;color:#374151">
+        <div>Real risk today: ${(a.risk_ratio||0).toFixed(2)}×</div>
+        <div>Change: ${a.sim_ratio > (a.risk_ratio||0) ? '+' : ''}${(a.sim_ratio - (a.risk_ratio||0)).toFixed(2)}×</div>
+        <div>EVs registered: ${(a.ev_count||0).toLocaleString()}</div>
+      </div>
+    </div>`, { maxWidth: 260 })
+    .addTo(layers.sim);
+  });
+
+  // Station overlays — squares to distinguish from FSA circles
+  result.stationResults.forEach(s => {
+    if (!s.latitude || !s.longitude) return;
+    if (s.sim_status === 'Operational') return; // only show degraded/offline
+    const col = s.sim_status === 'Offline' ? '#9ca3af'
+      : s.sim_status === 'High Risk' ? '#f97316' : '#facc15';
+    L.circleMarker([s.latitude, s.longitude], {
+      radius: 5, color: '#1a1d27', weight: 1,
+      fillColor: col, fillOpacity: 0.95
+    })
+    .bindTooltip(`[SIM] ${s.name||'Station'} — ${s.sim_status}`)
+    .addTo(layers.sim);
+  });
+
+  if (!map.hasLayer(layers.sim)) layers.sim.addTo(map);
+}
+
+function renderSimResults(result) {
+  const s = SIM_SCENARIOS[result.key];
+
+  document.getElementById('sim-banner-icon').textContent  = s.icon;
+  document.getElementById('sim-banner-label').textContent = s.label;
+  document.getElementById('sim-banner-desc').textContent  = s.description;
+
+  // FSA stats
+  const overloaded = result.fsaResults.filter(a => a.sim_level === 'Overload').length;
+  const currentOver = AREAS.filter(a => a.risk_level === 'Overload').length;
+  const delta = overloaded - currentOver;
+  const avgRatio = (result.fsaResults.reduce((s,a) => s + (a.sim_ratio||0), 0) / result.fsaResults.length).toFixed(2);
+
+  document.getElementById('sim-overloaded').textContent = overloaded;
+  const deltaEl = document.getElementById('sim-delta');
+  deltaEl.textContent = (delta >= 0 ? '+' : '') + delta + ' areas';
+  deltaEl.style.color = delta > 0 ? '#ef4444' : delta < 0 ? '#22c55e' : '#888';
+  document.getElementById('sim-risk-ratio').textContent = avgRatio;
+  document.getElementById('sim-wfactor').textContent = s.weather_factor.toFixed(2) + '×';
+
+  // Station stats
+  const cnt = { Operational: 0, Degraded: 0, 'High Risk': 0, Offline: 0 };
+  result.stationResults.forEach(st => { if (cnt[st.sim_status] !== undefined) cnt[st.sim_status]++; });
+  const total = Object.values(cnt).reduce((a,b) => a+b, 0) || 1;
+
+  document.getElementById('sim-cnt-op').textContent = cnt['Operational'];
+  document.getElementById('sim-cnt-dg').textContent = cnt['Degraded'];
+  document.getElementById('sim-cnt-hr').textContent = cnt['High Risk'];
+  document.getElementById('sim-cnt-of').textContent = cnt['Offline'];
+  document.getElementById('sim-bar-op').style.width = (cnt['Operational']/total*100).toFixed(0) + '%';
+  document.getElementById('sim-bar-dg').style.width = (cnt['Degraded']/total*100).toFixed(0) + '%';
+  document.getElementById('sim-bar-hr').style.width = (cnt['High Risk']/total*100).toFixed(0) + '%';
+  document.getElementById('sim-bar-of').style.width = (cnt['Offline']/total*100).toFixed(0) + '%';
+
+  // Problems
+  document.getElementById('sim-problems').innerHTML = s.problems.map(p =>
+    `<div class="sim-problem-item"><div class="sim-problem-dot"></div><div>${p}</div></div>`
+  ).join('');
 }
 
 // ── Winter history ─────────────────────────────────────────────────────────
