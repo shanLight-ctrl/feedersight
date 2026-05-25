@@ -1,0 +1,29 @@
+{
+  "model": "GradientBoostingRegressor",
+  "target": "years_to_overload (moderate 35% CAGR scenario)",
+  "cv_r2_mean": 0.727,
+  "cv_folds": 5,
+  "feature_importances": {
+    "ev_count": 0.3813,
+    "base_load_kw": 0.2914,
+    "feeder_capacity_kw": 0.1755,
+    "avg_charger_power_kw": 0.0956,
+    "premise_count": 0.0398,
+    "charger_count": 0.0089,
+    "peak_charging_share": 0.0075
+  },
+  "scenarios": {
+    "conservative": 0.2,
+    "moderate": 0.35,
+    "aggressive": 0.5
+  },
+  "max_forecast_years": 10,
+  "forecast_urgency_counts": {
+    "6-10 Years": 231,
+    "Safe 10+ Years": 92,
+    "3-5 Years": 28,
+    "Overloaded Now": 13,
+    "1-2 Years": 6
+  },
+  "fsa_count": 370
+}

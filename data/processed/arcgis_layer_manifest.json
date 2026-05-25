@@ -1,0 +1,61 @@
+{
+  "layers_for_arcgis": {
+    "feeder_sight_areas.csv": {
+      "xy": [
+        "longitude",
+        "latitude"
+      ],
+      "style": "risk_level",
+      "popup_fields": [
+        "fsa",
+        "area",
+        "ev_count",
+        "charger_count",
+        "base_load_kw",
+        "ev_load_kw",
+        "feeder_capacity_kw",
+        "risk_ratio",
+        "risk_level",
+        "ev_count_source",
+        "base_load_source",
+        "feeder_capacity_source"
+      ]
+    },
+    "existing_chargers.csv": {
+      "xy": [
+        "longitude",
+        "latitude"
+      ],
+      "style": "type"
+    },
+    "recommended_sites.csv": {
+      "xy": [
+        "longitude",
+        "latitude"
+      ]
+    },
+    "risk_forecast.csv": {
+      "xy": [
+        "longitude",
+        "latitude"
+      ],
+      "style": "forecast_urgency",
+      "popup_fields": [
+        "fsa",
+        "area",
+        "ev_count",
+        "risk_level",
+        "forecast_urgency",
+        "years_to_overload_conservative",
+        "years_to_overload_moderate",
+        "years_to_overload_aggressive",
+        "risk_moderate_3yr",
+        "risk_moderate_5yr",
+        "predicted_years_to_overload"
+      ],
+      "note": "years_to_overload = first year risk_ratio exceeds 1.0 under that CAGR scenario. Horizon: 10 years. Scenarios: conservative=20%, moderate=35%, aggressive=50%."
+    }
+  },
+  "rows": 370,
+  "all_real_except": "feeder_capacity_kw is a planning proxy from IESO peak + 25% margin, not utility nameplate capacity"
+}

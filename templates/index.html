@@ -1,0 +1,1338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FeederSight — EV Grid Intelligence</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0f1117; color: #e0e0e0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+/* ── Auth overlay ── */
+#auth-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 9999; display: flex; align-items: center; justify-content: center; }
+.auth-box { background: #1a1d27; border: 1px solid #2e3147; border-radius: 12px; padding: 32px; width: 360px; }
+.auth-box h2 { font-size: 22px; margin-bottom: 4px; color: #fff; }
+.auth-box p { font-size: 13px; color: #888; margin-bottom: 24px; }
+.auth-tabs { display: flex; gap: 0; margin-bottom: 20px; border: 1px solid #2e3147; border-radius: 8px; overflow: hidden; }
+.auth-tab { flex: 1; padding: 8px; text-align: center; font-size: 13px; cursor: pointer; color: #888; background: #252836; }
+.auth-tab.active { background: #4ea8de; color: #fff; font-weight: 600; }
+.form-group { margin-bottom: 14px; }
+.form-group label { display: block; font-size: 12px; color: #aaa; margin-bottom: 5px; }
+.form-group input, .form-group select, .form-group textarea {
+  width: 100%; background: #252836; border: 1px solid #3e4460; border-radius: 8px;
+  color: #e0e0e0; padding: 10px 12px; font-size: 13px; outline: none;
+}
+.form-group input:focus, .form-group select:focus { border-color: #4ea8de; }
+.btn { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-size: 14px; font-weight: 600; transition: opacity 0.2s; }
+.btn:hover { opacity: 0.85; }
+.btn-primary { background: #4ea8de; color: #fff; width: 100%; }
+.btn-ghost { background: none; color: #4ea8de; font-size: 12px; cursor: pointer; border: none; padding: 4px; }
+#auth-error { color: #f87171; font-size: 12px; margin-top: 8px; display: none; }
+
+/* ── Top bar ── */
+#topbar { background: #1a1d27; border-bottom: 1px solid #2e3147; padding: 8px 16px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; z-index: 1000; min-height: 52px; }
+#topbar h1 { font-size: 17px; font-weight: 700; color: #fff; white-space: nowrap; }
+#topbar h1 span { color: #4ea8de; }
+.stat-pill { background: #252836; border-radius: 20px; padding: 4px 10px; font-size: 12px; display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+.dot-red { background: #d7191c; } .dot-orange { background: #f4730a; } .dot-green { background: #2ca02c; } .dot-blue { background: #4ea8de; }
+
+/* ── Ask bar ── */
+#ask-wrap { display: flex; align-items: center; gap: 8px; margin-left: auto; flex: 1; max-width: 400px; }
+#ask-input { width: 100%; background: #252836; border: 1px solid #3e4460; border-radius: 20px; color: #e0e0e0; padding: 7px 14px 7px 34px; font-size: 13px; outline: none; }
+#ask-input:focus { border-color: #4ea8de; }
+.ask-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); opacity: 0.4; font-size: 13px; pointer-events: none; }
+.ask-wrap-inner { position: relative; flex: 1; }
+#ask-btn { background: #4ea8de; color: #fff; border: none; border-radius: 20px; padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+#user-pill { background: #252836; border-radius: 20px; padding: 4px 12px; font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer; border: 1px solid #3e4460; }
+#user-pill:hover { border-color: #4ea8de; }
+
+/* ── FSA tag ── */
+.fsa-tag { font-size: 10px; color: #666; background: #252836; border: 1px solid #3e4460; border-radius: 4px; padding: 1px 5px; margin-left: 4px; font-family: monospace; vertical-align: middle; }
+
+/* ── Navigation button ── */
+#nav-btn-wrap { display: none; padding: 8px 20px; background: #1a2820; border-bottom: 1px solid #2e5e2e; align-items: center; gap: 10px; }
+#nav-btn-wrap.visible { display: flex; }
+#nav-btn { background: #22c55e; color: #fff; border: none; border-radius: 20px; padding: 7px 16px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+#nav-btn:hover { background: #16a34a; }
+#nav-info { font-size: 12px; color: #86efac; flex: 1; }
+#nav-dismiss { background: none; border: none; color: #555; cursor: pointer; font-size: 15px; padding: 0 4px; }
+
+/* ── Location prompt overlay ── */
+#location-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 9998; display: none; align-items: center; justify-content: center; }
+#location-overlay.visible { display: flex; }
+.location-box { background: #1a1d27; border: 1px solid #2e3147; border-radius: 14px; padding: 28px; width: 340px; text-align: center; }
+.location-box h3 { font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+.location-box p { font-size: 13px; color: #888; margin-bottom: 22px; line-height: 1.5; }
+.loc-option { display: flex; align-items: center; gap: 12px; background: #252836; border: 1px solid #3e4460; border-radius: 10px; padding: 13px 16px; cursor: pointer; margin-bottom: 10px; text-align: left; transition: border-color 0.15s; }
+.loc-option:hover { border-color: #4ea8de; }
+.loc-option .loc-icon { font-size: 22px; flex-shrink: 0; }
+.loc-option .loc-label { font-size: 14px; font-weight: 600; color: #fff; }
+.loc-option .loc-sub { font-size: 11px; color: #888; margin-top: 2px; }
+.loc-skip { background: none; border: none; color: #555; font-size: 12px; cursor: pointer; margin-top: 6px; }
+.loc-skip:hover { color: #888; }
+#manual-input-wrap { display: none; margin-bottom: 10px; }
+#manual-input-wrap input { width: 100%; background: #252836; border: 1px solid #3e4460; border-radius: 8px; color: #e0e0e0; padding: 10px 14px; font-size: 13px; outline: none; }
+#manual-input-wrap input:focus { border-color: #4ea8de; }
+#manual-go { margin-top: 8px; width: 100%; padding: 10px; background: #4ea8de; color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+
+/* ── Limited AI mode badge ── */
+#limited-badge { display: none; background: #2d1f0a; border: 1px solid #78350f; border-radius: 6px; padding: 4px 10px; font-size: 11px; color: #fbbf24; margin-left: 8px; }
+
+/* ── Map floating controls ── */
+#map-controls { position: absolute; bottom: 32px; right: 10px; z-index: 999; display: flex; flex-direction: column; gap: 8px; }
+.map-toggle-btn { background: rgba(26,29,39,0.95); border: 1px solid #3e4460; border-radius: 20px; padding: 7px 14px; font-size: 13px; font-weight: 600; color: #e0e0e0; cursor: pointer; display: flex; align-items: center; gap: 7px; box-shadow: 0 2px 10px rgba(0,0,0,0.4); white-space: nowrap; transition: border-color 0.15s, background 0.15s; }
+.map-toggle-btn:hover { border-color: #4ea8de; }
+.map-toggle-btn.on { background: rgba(78,168,222,0.2); border-color: #4ea8de; color: #fff; }
+.map-toggle-btn .tog-dot { width: 8px; height: 8px; border-radius: 50%; background: #3e4460; transition: background 0.15s; }
+.map-toggle-btn.on .tog-dot { background: #4ea8de; }
+
+/* ── Guest vehicle card ── */
+.guest-vehicle-card { background: #1e2535; border: 1px dashed #3e4460; border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+.guest-vehicle-card .card-title { color: #888; }
+.session-note { font-size: 11px; color: #555; margin-top: 6px; display: flex; align-items: center; gap: 4px; }
+
+/* ── Answer banner ── */
+#ask-answer { display: none; background: #1e2d40; border-bottom: 1px solid #2e5080; padding: 9px 20px; font-size: 13px; color: #93c5fd; align-items: center; gap: 10px; }
+#ask-answer.visible { display: flex; }
+#ask-loading { display: none; background: #1e2d40; border-bottom: 1px solid #2e5080; padding: 9px 20px; font-size: 13px; color: #888; align-items: center; gap: 8px; }
+#ask-loading.visible { display: flex; }
+
+/* ── Weather banner ── */
+#weather-banner { display: none; background: #7c2d12; border-bottom: 1px solid #9a3412; padding: 7px 20px; font-size: 13px; color: #fed7aa; align-items: center; gap: 8px; }
+#weather-banner.visible { display: flex; }
+
+/* ── Main layout ── */
+#main { display: flex; flex: 1; overflow: hidden; }
+#map { flex: 1; }
+
+/* ── Side panel ── */
+#panel { width: 340px; background: #1a1d27; border-left: 1px solid #2e3147; display: flex; flex-direction: column; overflow: hidden; transition: width 0.2s; }
+#panel-tabs { display: flex; border-bottom: 1px solid #2e3147; flex-shrink: 0; }
+.tab { flex: 1; padding: 9px 4px; text-align: center; font-size: 11px; cursor: pointer; color: #666; border-bottom: 2px solid transparent; }
+.tab.active { color: #4ea8de; border-bottom-color: #4ea8de; }
+#panel-content { flex: 1; overflow-y: auto; }
+
+/* ── Panel views ── */
+.panel-view { padding: 12px; display: none; }
+.panel-view.active { display: block; }
+
+/* ── Breadcrumb ── */
+.breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #666; margin-bottom: 12px; }
+.breadcrumb span { cursor: pointer; color: #4ea8de; }
+.breadcrumb span:hover { text-decoration: underline; }
+.breadcrumb .sep { color: #444; }
+
+/* ── Cards ── */
+.card { background: #252836; border-radius: 8px; padding: 12px; margin-bottom: 10px; border: 1px solid #2e3147; }
+.card-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: #666; margin-bottom: 6px; }
+.card-value { font-size: 22px; font-weight: 700; color: #fff; }
+.card-sub { font-size: 12px; color: #888; margin-top: 2px; }
+
+/* ── Machine list ── */
+.machine-row { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; margin-bottom: 6px; background: #252836; transition: border-color 0.15s; }
+.machine-row:hover { border-color: #4ea8de; }
+.machine-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+.machine-info { flex: 1; min-width: 0; }
+.machine-name { font-size: 13px; font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.machine-meta { font-size: 11px; color: #888; margin-top: 1px; }
+.machine-status { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px; white-space: nowrap; }
+
+/* ── Status colors ── */
+.status-operational { background: #d1fae5; color: #065f46; }
+.status-degraded { background: #fef3c7; color: #92400e; }
+.status-high-risk { background: #fee2e2; color: #991b1b; }
+.status-offline { background: #e5e7eb; color: #374151; }
+
+/* ── Detail rows ── */
+.detail-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid #2e3147; font-size: 13px; }
+.detail-row:last-child { border-bottom: none; }
+.detail-label { color: #888; }
+.detail-value { font-weight: 600; color: #fff; text-align: right; }
+
+/* ── Charge estimate ── */
+.charge-estimate { background: #1e2d1e; border: 1px solid #2e5e2e; border-radius: 8px; padding: 12px; margin-top: 10px; }
+.charge-time { font-size: 28px; font-weight: 700; color: #6ee7b7; }
+.charge-time-label { font-size: 12px; color: #4ade80; margin-top: 2px; }
+
+/* ── Urgency rows ── */
+.urgency-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid #2e3147; font-size: 13px; }
+.urgency-row:last-child { border-bottom: none; }
+.urg-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.urg-label { flex: 1; color: #ccc; }
+.urg-count { font-weight: 600; color: #fff; }
+
+/* ── Layer toggles ── */
+.layer-toggle { display: flex; align-items: center; gap: 8px; padding: 7px 0; font-size: 13px; cursor: pointer; border-bottom: 1px solid #2e3147; }
+.layer-toggle:last-child { border-bottom: none; }
+.tog { width: 32px; height: 18px; background: #3e4460; border-radius: 9px; position: relative; transition: background 0.2s; flex-shrink: 0; }
+.tog.on { background: #4ea8de; }
+.tog::after { content:''; position:absolute; width:14px; height:14px; background:#fff; border-radius:50%; top:2px; left:2px; transition:left 0.2s; }
+.tog.on::after { left:16px; }
+
+/* ── ML badges ── */
+.ml-badge { display: inline-block; font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 600; margin-left: 4px; }
+.ml-lr { background: #1e3a5f; color: #7dd3fc; }
+.ml-gb { background: #1e3d2e; color: #6ee7b7; }
+.ml-if { background: #3d1e3d; color: #d8b4fe; }
+
+/* ── Report form ── */
+.rpt-btn { padding: 7px 14px; background: #f4730a; color: #fff; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; margin-top: 8px; width: 100%; }
+.rpt-btn:hover { opacity: 0.85; }
+#rpt-success { color: #6ee7b7; font-size: 12px; margin-top: 6px; display: none; }
+
+/* ── Near me ── */
+.near-btn { display: flex; align-items: center; gap: 6px; background: #252836; border: 1px solid #3e4460; border-radius: 8px; padding: 8px 12px; font-size: 13px; cursor: pointer; color: #e0e0e0; width: 100%; margin-bottom: 8px; }
+.near-btn:hover { border-color: #4ea8de; }
+.range-slider { width: 100%; margin: 8px 0 4px; accent-color: #4ea8de; }
+.battery-input { display: flex; gap: 8px; align-items: center; }
+.battery-input input { width: 70px; background: #252836; border: 1px solid #3e4460; border-radius: 6px; color: #fff; padding: 6px 8px; font-size: 13px; outline: none; text-align: center; }
+.range-display { font-size: 20px; font-weight: 700; color: #4ea8de; margin: 6px 0 2px; }
+
+/* ── Profile card ── */
+.profile-avatar { width: 44px; height: 44px; border-radius: 50%; background: #4ea8de; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; color: #fff; flex-shrink: 0; }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #3e4460; border-radius: 2px; }
+
+/* ── Winter panel ── */
+.winter-season { border-bottom: 1px solid #2e3147; padding: 8px 0; }
+.winter-season:last-child { border-bottom: none; }
+.winter-label { font-size: 12px; font-weight: 700; color: #93c5fd; margin-bottom: 4px; }
+.winter-coldest { font-size: 20px; font-weight: 700; color: #60a5fa; }
+.winter-meta { font-size: 11px; color: #888; margin-top: 1px; }
+.winter-event-pill { display: inline-block; font-size: 10px; padding: 1px 7px; border-radius: 10px; font-weight: 600; margin-left: 5px; }
+.event-blizzard { background: #1e3a5f; color: #93c5fd; }
+.event-extreme { background: #1c1e4a; color: #a5b4fc; }
+.event-cold-snap { background: #1a2840; color: #7dd3fc; }
+.event-snow { background: #1a2035; color: #bfdbfe; }
+.event-wind { background: #2d1f0a; color: #fcd34d; }
+.event-normal { background: #1a2535; color: #94a3b8; }
+.bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 12px; }
+.bar-label { width: 90px; color: #aaa; flex-shrink: 0; font-size: 11px; }
+.bar-track { flex: 1; background: #2e3147; border-radius: 4px; height: 12px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 4px; transition: width 0.4s ease; }
+.bar-val { width: 38px; text-align: right; color: #ccc; font-size: 11px; flex-shrink: 0; }
+.future-card { background: #1a2535; border: 1px solid #2e4060; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
+.future-label { font-size: 13px; font-weight: 700; color: #60a5fa; margin-bottom: 6px; }
+.future-row { display: flex; justify-content: space-between; font-size: 12px; padding: 3px 0; border-bottom: 1px solid #1e3050; }
+.future-row:last-child { border-bottom: none; }
+.future-key { color: #888; }
+.future-val { font-weight: 600; color: #e0e0e0; }
+.future-val.warn { color: #f97316; }
+.future-val.danger { color: #ef4444; }
+</style>
+</head>
+<body>
+
+<!-- ── Location prompt ────────────────────────────────────────────────── -->
+<div id="location-overlay">
+  <div class="location-box">
+    <div style="font-size:36px;margin-bottom:10px">📍</div>
+    <h3>Where are you charging?</h3>
+    <p>FeederSight works best when it knows your location — we'll show you nearby chargers and tonight's grid conditions.</p>
+
+    <div class="loc-option" onclick="useMyLocation()">
+      <div class="loc-icon">🎯</div>
+      <div>
+        <div class="loc-label">Use my location</div>
+        <div class="loc-sub">Automatic — most accurate</div>
+      </div>
+    </div>
+
+    <div class="loc-option" id="manual-option" onclick="showManualInput()">
+      <div class="loc-icon">🏙️</div>
+      <div>
+        <div class="loc-label">Enter a neighbourhood</div>
+        <div class="loc-sub">Type Markham, Scarborough, etc.</div>
+      </div>
+    </div>
+
+    <div id="manual-input-wrap">
+      <input type="text" id="manual-location" placeholder="e.g. Markham, North York, Oakville…" onkeydown="if(event.key==='Enter') goManualLocation()"/>
+      <button id="manual-go" onclick="goManualLocation()">Find chargers here →</button>
+    </div>
+
+    <div class="loc-option" onclick="skipLocation()">
+      <div class="loc-icon">🗺️</div>
+      <div>
+        <div class="loc-label">Browse the map</div>
+        <div class="loc-sub">Skip — I'll explore on my own</div>
+      </div>
+    </div>
+
+    <button class="loc-skip" onclick="skipLocation()">Skip for now</button>
+  </div>
+</div>
+
+<!-- ── Auth overlay ────────────────────────────────────────────────────── -->
+<div id="auth-overlay">
+  <div class="auth-box">
+    <h2>⚡ FeederSight</h2>
+    <p>EV charging grid intelligence for the GTA</p>
+    <div class="auth-tabs">
+      <div class="auth-tab active" id="tab-login-btn" onclick="switchAuth('login')">Sign In</div>
+      <div class="auth-tab" id="tab-signup-btn" onclick="switchAuth('signup')">Create Account</div>
+    </div>
+    <div id="auth-login">
+      <div class="form-group"><label>Username</label><input id="login-user" type="text" placeholder="your username" autocomplete="username"/></div>
+      <div class="form-group"><label>Password</label><input id="login-pass" type="password" placeholder="password" autocomplete="current-password"/></div>
+      <button class="btn btn-primary" onclick="doLogin()">Sign In</button>
+      <div style="text-align:center;margin-top:10px"><button class="btn-ghost" onclick="continueAsGuest()">Continue as guest →</button></div>
+    </div>
+    <div id="auth-signup" style="display:none">
+      <div class="form-group"><label>Username</label><input id="signup-user" type="text" placeholder="choose a username" autocomplete="username"/></div>
+      <div class="form-group"><label>Password (6+ chars)</label><input id="signup-pass" type="password" placeholder="choose a password" autocomplete="new-password"/></div>
+      <div class="form-group">
+        <label>Your EV model <span style="color:#666">(optional)</span></label>
+        <select id="signup-car">
+          <option value="">— Select car model —</option>
+          {% for car in car_models %}<option value="{{ car }}">{{ car }}</option>{% endfor %}
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="doSignup()">Create Account</button>
+    </div>
+    <div id="auth-error"></div>
+  </div>
+</div>
+
+<!-- ── Top bar ─────────────────────────────────────────────────────────── -->
+<div id="topbar">
+  <h1>Feeder<span>Sight</span></h1>
+  <div class="stat-pill"><span class="dot dot-red"></span><b>{{ overloaded_now }}</b> overloaded</div>
+  <div class="stat-pill"><span class="dot dot-orange"></span><b>{{ at_risk_soon }}</b> at risk 2yr</div>
+  <div class="stat-pill"><span class="dot dot-blue"></span><b>{{ total_fsas }}</b> FSAs</div>
+  <div class="stat-pill" id="weather-pill"><span class="dot dot-green" id="weather-dot"></span><span id="weather-label">...</span></div>
+
+  <div id="ask-wrap">
+    <div class="ask-wrap-inner">
+      <span class="ask-icon">🔍</span>
+      <input id="ask-input" type="text" placeholder="Ask anything… e.g. 'Tesla Model 3, 25% battery, near Markham'"
+        onkeydown="if(event.key==='Enter') askQuestion()"/>
+    </div>
+    <button id="ask-btn" onclick="askQuestion()">Ask AI</button>
+    <span id="limited-badge">⚡ Limited mode</span>
+  </div>
+
+  <div id="user-pill" onclick="showTab('profile')">
+    <span>👤</span><span id="user-pill-name">Guest</span>
+  </div>
+</div>
+
+<!-- Answer / loading banners -->
+<div id="ask-loading"><span style="font-size:15px">⏳</span> Thinking...</div>
+<div id="ask-answer">
+  <span style="font-size:15px">💬</span>
+  <span id="ask-answer-text" style="flex:1"></span>
+  <button onclick="document.getElementById('ask-answer').classList.remove('visible')" style="background:none;border:none;color:#555;cursor:pointer;font-size:16px;padding:0 4px">✕</button>
+</div>
+
+<!-- Navigation follow-up -->
+<div id="nav-btn-wrap">
+  <button id="nav-btn" onclick="openNavigation()">🧭 Get Directions</button>
+  <span id="nav-info"></span>
+  <button id="nav-dismiss" onclick="document.getElementById('nav-btn-wrap').classList.remove('visible')">✕</button>
+</div>
+
+<!-- Weather alert -->
+<div id="weather-banner" {% if weather_alert %}class="visible"{% endif %}>
+  ⚠️ <b>Weather Alert:</b> {{ weather_alert or "" }}
+</div>
+
+<!-- ── Main ─────────────────────────────────────────────────────────────── -->
+<div id="main">
+  <div id="map" style="position:relative">
+    <!-- Floating map layer toggles -->
+    <div id="map-controls">
+      <button class="map-toggle-btn" id="btn-stations" onclick="mapToggle('stations','btn-stations')">
+        <span class="tog-dot"></span>🔌 Charging stations
+      </button>
+      <button class="map-toggle-btn on" id="btn-recommended" onclick="mapToggle('recommended','btn-recommended')">
+        <span class="tog-dot"></span>📍 Priority sites
+      </button>
+      <button class="map-toggle-btn on" id="btn-fsa" onclick="mapToggle('fsa','btn-fsa')">
+        <span class="tog-dot"></span>🔴 Grid risk areas
+      </button>
+      <button class="map-toggle-btn on" id="btn-anomaly" onclick="mapToggle('anomaly','btn-anomaly')">
+        <span class="tog-dot"></span>⚠️ Caution flags
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Side panel ── -->
+  <div id="panel">
+    <div id="panel-tabs">
+      <div class="tab active" onclick="showTab('overview')">Overview</div>
+      <div class="tab" onclick="showTab('nearby')">Near Me</div>
+      <div class="tab" onclick="showTab('winter')">Winter</div>
+      <div class="tab" onclick="showTab('ml')">ML</div>
+      <div class="tab" onclick="showTab('reports')">Reports</div>
+      <div class="tab" onclick="showTab('profile')">Profile</div>
+    </div>
+
+    <div id="panel-content">
+
+      <!-- OVERVIEW -->
+      <div class="panel-view active" id="view-overview">
+        <div class="card">
+          <div class="card-title">Weather — Toronto</div>
+          <div class="card-value" id="ov-temp">{{ weather.current_temp_c }}°C</div>
+          <div class="card-sub" id="ov-event">{{ (weather.current_event or 'normal').replace('_',' ') }}</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Forecast urgency (35% growth)</div>
+          <div class="urgency-row"><span class="urg-dot" style="background:#d7191c"></span><span class="urg-label">Overloaded now</span><span class="urg-count" id="u0">{{ overloaded_now }}</span></div>
+          <div class="urgency-row"><span class="urg-dot" style="background:#f4730a"></span><span class="urg-label">1–2 years</span><span class="urg-count" id="u1">{{ at_risk_soon }}</span></div>
+          <div class="urgency-row"><span class="urg-dot" style="background:#fecc02"></span><span class="urg-label">3–5 years</span><span class="urg-count" id="u2">—</span></div>
+          <div class="urgency-row"><span class="urg-dot" style="background:#92c5de"></span><span class="urg-label">6–10 years</span><span class="urg-count" id="u3">—</span></div>
+          <div class="urgency-row"><span class="urg-dot" style="background:#2ca02c"></span><span class="urg-label">Safe 10+ years</span><span class="urg-count" id="u4">—</span></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Station status</div>
+          <div class="urgency-row"><span class="urg-dot dot-green"></span><span class="urg-label">Operational</span><span class="urg-count" id="s0">—</span></div>
+          <div class="urgency-row"><span class="urg-dot" style="background:#fecc02"></span><span class="urg-label">Degraded</span><span class="urg-count" id="s1">—</span></div>
+          <div class="urgency-row"><span class="urg-dot dot-orange"></span><span class="urg-label">High Risk</span><span class="urg-count" id="s2">—</span></div>
+          <div class="urgency-row"><span class="urg-dot" style="background:#9ca3af"></span><span class="urg-label">Offline</span><span class="urg-count" id="s3">—</span></div>
+        </div>
+      </div>
+
+      <!-- NEAR ME -->
+      <div class="panel-view" id="view-nearby">
+        <button class="near-btn" onclick="locateMe()">📍 Use my location</button>
+
+        <!-- Guest vehicle quick-setup (session only) -->
+        <div class="guest-vehicle-card" id="guest-vehicle-card" style="display:none">
+          <div class="card-title">Your vehicle <span style="color:#f4730a">— session only</span></div>
+          <div class="form-group" style="margin-top:8px;margin-bottom:8px">
+            <select id="guest-car-select" onchange="saveGuestVehicle()">
+              <option value="">— Select your car —</option>
+              {% for car in car_models %}<option value="{{ car }}">{{ car }}</option>{% endfor %}
+            </select>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
+            <div style="flex:1">
+              <label style="font-size:11px;color:#888">Battery %</label>
+              <input type="number" id="guest-battery" min="1" max="100" value="50" style="width:100%;background:#1a1d27;border:1px solid #3e4460;border-radius:6px;color:#fff;padding:6px 8px;font-size:13px;outline:none;margin-top:3px" oninput="saveGuestVehicle()"/>
+            </div>
+            <div style="flex:1">
+              <label style="font-size:11px;color:#888">Charge to</label>
+              <select id="guest-target" style="width:100%;background:#1a1d27;border:1px solid #3e4460;border-radius:6px;color:#fff;padding:6px 8px;font-size:13px;outline:none;margin-top:3px" onchange="saveGuestVehicle()">
+                <option value="50">50%</option>
+                <option value="80" selected>80%</option>
+                <option value="100">100%</option>
+              </select>
+            </div>
+          </div>
+          <div class="range-display" id="guest-range-display" style="display:none"></div>
+          <div class="session-note">🔒 Not saved — clears when you close this tab. <a href="#" onclick="showTab('profile');return false" style="color:#4ea8de;text-decoration:none">Sign in to save →</a></div>
+        </div>
+
+        <div class="card" style="margin-bottom:10px">
+          <div class="card-title">Search radius: <span id="radius-val">10</span> km</div>
+          <input type="range" class="range-slider" min="2" max="30" value="10" id="radius-slider" oninput="updateRadius(this.value)"/>
+          <div id="battery-section" style="display:none">
+            <div class="card-title" style="margin-top:8px">Current battery</div>
+            <div class="battery-input">
+              <input type="number" id="battery-pct" min="1" max="100" value="50" oninput="updateRange()"/>
+              <span style="color:#888">%</span>
+            </div>
+            <div class="range-display" id="range-display">— km range</div>
+            <div style="font-size:11px;color:#666">Based on your car profile</div>
+          </div>
+        </div>
+        <div id="nearby-list"><div style="color:#666;font-size:13px;text-align:center;padding:20px">Press "Use my location" to find chargers near you</div></div>
+      </div>
+
+      <!-- STATION DETAIL (injected dynamically) -->
+      <div class="panel-view" id="view-station">
+        <div class="breadcrumb">
+          <span onclick="showTab('overview')">Overview</span>
+          <span class="sep">›</span>
+          <span style="color:#ccc" id="bc-station">Station</span>
+        </div>
+        <div id="station-detail-content"></div>
+      </div>
+
+      <!-- MACHINE DETAIL (injected dynamically) -->
+      <div class="panel-view" id="view-machine">
+        <div class="breadcrumb">
+          <span onclick="showTab('overview')">Overview</span>
+          <span class="sep">›</span>
+          <span onclick="showStationPanel(_currentStation)" id="bc-station2" style="cursor:pointer">Station</span>
+          <span class="sep">›</span>
+          <span style="color:#ccc" id="bc-machine">Machine</span>
+        </div>
+        <div id="machine-detail-content"></div>
+      </div>
+
+      <!-- WINTER HISTORY -->
+      <div class="panel-view" id="view-winter">
+        <div id="winter-loading" style="color:#888;font-size:13px;padding:8px 0">Loading winter data...</div>
+        <div id="winter-content" style="display:none">
+
+          <!-- Past winters -->
+          <div class="card" style="margin-bottom:0;border-bottom:none;border-radius:8px 8px 0 0">
+            <div class="card-title">Worst on record — coldest day per winter</div>
+            <div id="winter-history-rows"></div>
+          </div>
+
+          <!-- Season comparison bar chart -->
+          <div class="card" style="border-radius:0;border-top:none;border-bottom:none;padding-top:8px">
+            <div class="card-title">Grid stress at cold peak (mean risk ratio)</div>
+            <div id="winter-bars"></div>
+          </div>
+
+          <!-- Divider -->
+          <div class="card" style="border-radius:0 0 8px 8px;border-top:none;padding-top:6px;margin-bottom:12px">
+            <div class="card-title">FSAs overloaded at peak cold</div>
+            <div id="winter-overload-bars"></div>
+          </div>
+
+          <!-- Future projections -->
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:#666;margin-bottom:6px;padding:0 2px">Future winters — moderate 35% EV growth</div>
+          <div id="winter-future"></div>
+
+          <div style="font-size:11px;color:#555;margin-top:10px;padding:0 2px;line-height:1.5">
+            Weather: Open-Meteo Archive (Toronto, Dec–Feb). Grid stress uses current FSA loads × weather factor for battery efficiency + heating demand.
+          </div>
+        </div>
+      </div>
+
+      <!-- ML MODELS -->
+      <div class="panel-view" id="view-ml">
+        <div class="card">
+          <div class="card-title">Model 1 — Outage Probability <span class="ml-badge ml-lr">Logistic Regression</span></div>
+          <div class="card-sub" style="margin-top:6px;line-height:1.5">P(outage in 24h) per FSA. Inputs: risk ratio, grid load, feeder capacity, EV count, charger count, weather severity.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Model 2 — Rate Limit Optimizer <span class="ml-badge ml-gb">Gradient Boosting</span></div>
+          <div class="card-sub" style="margin-top:6px;line-height:1.5">Recommends max safe kW per FSA to keep grid load below feeder capacity under current weather.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Model 3 — Anomaly Detector <span class="ml-badge ml-if">Isolation Forest</span></div>
+          <div class="card-sub" style="margin-top:6px;line-height:1.5">Flags statistically unusual stations — abnormal machine counts, power ratings, or repeated reports. 5% contamination rate.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Key risk drivers</div>
+          <div id="imp-list"></div>
+        </div>
+      </div>
+
+      <!-- REPORTS -->
+      <div class="panel-view" id="view-reports">
+        <div class="card">
+          <div class="card-title">Report a station problem</div>
+          <div class="form-group"><label>Station name</label><input type="text" id="rpt-station" placeholder="e.g. Scarborough Town Centre"/></div>
+          <div class="form-group">
+            <label>Issue type</label>
+            <select id="rpt-type">
+              <option value="not_working">Not working / offline</option>
+              <option value="cut_wire">Cut or damaged wire</option>
+              <option value="physical_damage">Physical damage</option>
+              <option value="suspicious">Suspicious behaviour</option>
+              <option value="slow_charge">Charging very slowly</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Description</label><textarea id="rpt-desc" rows="3" placeholder="Describe what you observed..."></textarea></div>
+          <button class="rpt-btn" onclick="submitReport()">⚑ Submit Report</button>
+          <div id="rpt-success">✓ Report saved.</div>
+        </div>
+        <div id="reports-list"></div>
+      </div>
+
+      <!-- PROFILE -->
+      <div class="panel-view" id="view-profile">
+        <div class="card" id="profile-card">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+            <div class="profile-avatar" id="profile-avatar">?</div>
+            <div><div style="font-weight:700;font-size:15px" id="profile-name">Guest</div><div style="font-size:12px;color:#888" id="profile-sub">Not signed in</div></div>
+          </div>
+          <div id="profile-logged-out">
+            <button class="btn btn-primary" style="margin-bottom:8px" onclick="document.getElementById('auth-overlay').style.display='flex'">Sign In / Create Account</button>
+          </div>
+          <div id="profile-logged-in" style="display:none">
+            <div class="form-group"><label>Your EV model</label>
+              <select id="profile-car">
+                <option value="">— Select car model —</option>
+                {% for car in car_models %}<option value="{{ car }}">{{ car }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="form-group"><label>Charge target (%)</label>
+              <select id="profile-target">
+                <option value="50">50% — just enough</option>
+                <option value="80" selected>80% — recommended</option>
+                <option value="90">90%</option>
+                <option value="100">100% — full charge</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" style="margin-bottom:8px" onclick="saveProfile()">Save Profile</button>
+            <button class="btn" style="background:#2e3147;color:#888;width:100%" onclick="doLogout()">Sign Out</button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- end panel-content -->
+  </div><!-- end panel -->
+</div><!-- end main -->
+
+<script>
+// ── Data from server ──────────────────────────────────────────────────────
+const AREAS = {{ areas_json | safe }};
+const STATIONS = {{ stations_json | safe }};
+const MACHINES = {{ machines_json | safe }};
+const RECOMMENDED = {{ recommended_json | safe }};
+const WEATHER = {{ weather_json | safe }};
+
+const URGENCY_COLOR = {"Overloaded Now":"#d7191c","1-2 Years":"#f4730a","3-5 Years":"#fecc02","6-10 Years":"#92c5de","Safe 10+ Years":"#2ca02c"};
+const STATUS_COLOR  = {"Operational":"#2ca02c","Degraded":"#fecc02","High Risk":"#f4730a","Offline":"#9ca3af"};
+
+let _currentUser = null;
+let _userLat = null, _userLon = null;
+let _radius = 10;
+let _currentStation = null;
+let _navTarget = null;  // latest navigation target from AI
+
+// ── Guest session vehicle (sessionStorage — lives while tab is open) ──────
+function loadGuestSession() {
+  try {
+    const saved = sessionStorage.getItem('feedersight_guest');
+    return saved ? JSON.parse(saved) : null;
+  } catch { return null; }
+}
+function saveGuestVehicle() {
+  const car = document.getElementById('guest-car-select').value;
+  const batt = parseInt(document.getElementById('guest-battery').value)||50;
+  const target = parseInt(document.getElementById('guest-target').value)||80;
+  sessionStorage.setItem('feedersight_guest', JSON.stringify({car_model:car, battery_pct:batt, charge_target:target}));
+  updateGuestRange();
+  if (_userLat) renderNearby();
+}
+function updateGuestRange() {
+  const car = document.getElementById('guest-car-select').value;
+  const batt = parseInt(document.getElementById('guest-battery').value)||50;
+  const el = document.getElementById('guest-range-display');
+  if (!car) { el.style.display='none'; return; }
+  fetch('/api/chargetime',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({car_model:car,current_pct:batt,target_pct:batt,charger_kw:7.2})
+  }).then(r=>r.json()).then(ct=>{
+    el.style.display='block';
+    el.textContent = ct.reachable_km + ' km range from ' + batt + '%';
+  }).catch(()=>{});
+}
+function getActiveProfile() {
+  // Returns logged-in profile, OR guest session, OR null
+  if (_currentUser) return _currentUser;
+  return loadGuestSession();
+}
+
+// ── Map ───────────────────────────────────────────────────────────────────
+const map = L.map('map', {center:[43.75,-79.45], zoom:9});
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:19}).addTo(map);
+
+const layers = {fsa:L.layerGroup(), stations:L.layerGroup(), recommended:L.layerGroup(), anomaly:L.layerGroup()};
+layers.fsa.addTo(map);
+layers.recommended.addTo(map);
+layers.anomaly.addTo(map);
+
+// FSA dots — area name first, FSA code as small tag
+const urgCounts = {};
+AREAS.forEach(a => {
+  const urg = a.forecast_urgency || "Safe 10+ Years";
+  urgCounts[urg] = (urgCounts[urg]||0)+1;
+  const color = URGENCY_COLOR[urg]||"#888";
+  const prob = a.outage_probability!=null ? (a.outage_probability*100).toFixed(0) : "—";
+  const areaName = (a.area && a.area !== a.fsa) ? a.area : a.fsa;
+  const fsaTag = (a.area && a.area !== a.fsa) ? `<span style="font-size:10px;color:#999;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:3px;padding:1px 4px;margin-left:4px;font-family:monospace">${a.fsa}</span>` : '';
+  // Driver-friendly summary labels
+  const outageNum = parseFloat(prob);
+  const safetyMsg = a.risk_level === 'Overload'
+    ? {icon:'🔴', text:'Grid overloaded — avoid charging here if possible', color:'#ef4444'}
+    : a.risk_ratio >= 0.9
+    ? {icon:'🟡', text:'Grid getting busy — charging may be slower', color:'#f59e0b'}
+    : {icon:'🟢', text:'Grid healthy — safe to charge', color:'#22c55e'};
+  const outageMsg = outageNum >= 50 ? `⚠️ ${prob}% chance of outage tonight`
+    : outageNum >= 20 ? `${prob}% chance of disruption tonight`
+    : `Safe tonight — ${prob}% outage risk`;
+  const rateMsg = (a.rate_limit_label||'').includes('Limited')
+    ? `⚡ ${a.rate_limit_label}` : `✅ Full charging speed available`;
+  const uid = 'fsa_'+a.fsa;
+
+  L.circleMarker([a.latitude,a.longitude],{radius:8,color,fillColor:color,fillOpacity:0.7,weight:1})
+    .bindTooltip(`${areaName} | ${urg}`)
+    .bindPopup(`<div style="font-family:-apple-system,sans-serif;font-size:13px;min-width:220px">
+      <div style="margin-bottom:6px"><b style="font-size:15px">${areaName}</b>${fsaTag}</div>
+      <div style="font-size:14px;font-weight:600;color:${safetyMsg.color};margin-bottom:8px">${safetyMsg.icon} ${safetyMsg.text}</div>
+      <div style="background:#f9fafb;border-radius:6px;padding:8px;margin-bottom:6px">
+        <div style="font-size:12px;color:#374151;margin-bottom:4px">${outageMsg}</div>
+        <div style="font-size:12px;color:#374151">${rateMsg}</div>
+      </div>
+      <div style="font-size:11px;color:#9ca3af;cursor:pointer;text-decoration:underline" onclick="document.getElementById('${uid}').style.display=document.getElementById('${uid}').style.display==='none'?'block':'none'">Show technical details ▾</div>
+      <div id="${uid}" style="display:none;margin-top:8px">
+        <table style="width:100%;font-size:11px;border-collapse:collapse;color:#374151">
+          <tr><td style="color:#9ca3af;padding:2px 0">Grid load</td><td><b>${(a.risk_ratio||0).toFixed(2)}× capacity</b></td></tr>
+          <tr><td style="color:#9ca3af;padding:2px 0">EVs registered</td><td><b>${(a.ev_count||0).toLocaleString()}</b></td></tr>
+          <tr><td style="color:#9ca3af;padding:2px 0">Grid load in 3 years</td><td><b>${(a.risk_moderate_3yr||0).toFixed(2)}×</b></td></tr>
+          <tr><td style="color:#9ca3af;padding:2px 0">Forecast</td><td><b>${urg}</b></td></tr>
+        </table>
+      </div>
+    </div>`,{maxWidth:300})
+    .addTo(layers.fsa);
+});
+["Overloaded Now","1-2 Years","3-5 Years","6-10 Years","Safe 10+ Years"].forEach((k,i)=>{
+  const el=document.getElementById(`u${i}`); if(el) el.textContent=urgCounts[k]||0;
+});
+
+// Station markers — click opens station drill-down
+const stationMap = {};
+const statusCounts = {Operational:0,Degraded:0,"High Risk":0,Offline:0};
+STATIONS.forEach(s => {
+  if (!s.latitude||!s.longitude) return;
+  const ws = s.weather_status||"Operational";
+  statusCounts[ws]=(statusCounts[ws]||0)+1;
+  stationMap[s.station_id] = s;
+  const color = STATUS_COLOR[ws]||"#888";
+  const stationStatusMsg = ws === 'Operational' ? '✅ Working normally'
+    : ws === 'Degraded' ? '⚠️ May be slower than usual'
+    : ws === 'High Risk' ? '⚠️ At risk due to weather — check before driving'
+    : '🔴 Currently offline';
+  L.circleMarker([s.latitude,s.longitude],{radius:6,color,fillColor:color,fillOpacity:0.85,weight:1})
+    .bindTooltip(`${s.name||"Station"} — ${ws} (${s.machine_count||1} machines)`)
+    .bindPopup(`<div style="font-family:-apple-system,sans-serif;font-size:13px;min-width:200px">
+      <b style="font-size:14px">${s.name||'Charging Station'}</b>
+      <div style="font-size:13px;font-weight:600;margin:6px 0;color:${STATUS_COLOR[ws]||'#888'}">${stationStatusMsg}</div>
+      <div style="background:#f9fafb;border-radius:6px;padding:8px;font-size:12px;color:#374151">
+        <div style="margin-bottom:3px">🔌 <b>${s.machine_count||1} charging machine${(s.machine_count||1)!==1?'s':''}</b> at this station</div>
+        <div style="margin-bottom:3px">⚡ ${s.type||'—'} · ${(s.avg_power_kw||7.2).toFixed(0)} kW average</div>
+        <div>${s.city||''}</div>
+      </div>
+      <div style="margin-top:8px">
+        <div style="font-size:11px;color:#9ca3af;cursor:pointer;text-decoration:underline" onclick="toggleMachines('${s.station_id}')">🔌 Show charging machines ▾</div>
+        <div id="machines_${s.station_id}" style="display:none;margin-top:8px"></div>
+      </div>
+      <button onclick="showStationPanel(${JSON.stringify(s).replace(/"/g,'&quot;')})" style="margin-top:8px;width:100%;padding:6px;background:#4ea8de;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">Full details →</button>
+    </div>`,{maxWidth:280})
+    .on('click', ()=> showStationPanel(s))
+    .addTo(layers.stations);
+});
+["Operational","Degraded","High Risk","Offline"].forEach((k,i)=>{
+  const el=document.getElementById(`s${i}`); if(el) el.textContent=statusCounts[k]||0;
+});
+
+// Recommended
+RECOMMENDED.forEach((r,i)=>{
+  if(!r.latitude||!r.longitude) return;
+  const icon=L.divIcon({html:`<div style="background:#5d3fd3;color:#fff;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.5)">${i+1}</div>`,className:'',iconSize:[26,26],iconAnchor:[13,13]});
+  L.marker([r.latitude,r.longitude],{icon}).bindTooltip(`#${i+1} ${r.fsa}`).addTo(layers.recommended);
+});
+
+// Anomalies
+STATIONS.forEach(s=>{
+  if(!s.is_anomaly||!s.latitude||!s.longitude) return;
+  const icon=L.divIcon({html:'<div style="font-size:16px">⚠️</div>',className:'',iconSize:[20,20],iconAnchor:[10,10]});
+  L.marker([s.latitude,s.longitude],{icon}).bindTooltip(`Anomaly: ${s.name||""}  — ${s.anomaly_reason||"outlier"}`).addTo(layers.anomaly);
+});
+
+// Weather pill
+const wEvt = (WEATHER.current_event||'normal').replace(/_/g,' ');
+document.getElementById('weather-label').textContent = `${WEATHER.current_temp_c}°C — ${wEvt}`;
+if (WEATHER.alert_active) { document.getElementById('weather-dot').style.background='#f4730a'; }
+
+// ML importances
+const imps=[["EV count",38.1],["Base grid load",29.1],["Feeder capacity",17.5],["Avg charger power",9.6],["Premise count",4.0]];
+const impList=document.getElementById('imp-list');
+imps.forEach(([n,v])=>{ impList.innerHTML+=`<div style="margin-bottom:7px"><div style="display:flex;justify-content:space-between;font-size:12px"><span style="color:#ccc">${n}</span><span style="color:#fff">${v}%</span></div><div style="background:#2e3147;border-radius:3px;height:5px;margin-top:3px"><div style="width:${v*2.5}%;background:#4ea8de;height:5px;border-radius:3px"></div></div></div>`; });
+
+// ── Station drill-down ────────────────────────────────────────────────────
+async function showStationPanel(station) {
+  _currentStation = station;
+  showTab('station');
+  document.getElementById('bc-station').textContent = station.name || 'Station';
+  document.getElementById('bc-station2').textContent = station.name || 'Station';
+  const ws = station.weather_status || 'Operational';
+  const color = STATUS_COLOR[ws]||'#888';
+  const cls = 'status-'+ws.toLowerCase().replace(' ','-');
+
+  let html = `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+        <div style="font-weight:700;font-size:15px;flex:1;margin-right:8px">${station.name||'Station'}</div>
+        <span class="machine-status ${cls}">${ws}</span>
+      </div>
+      <div class="detail-row"><span class="detail-label">City</span><span class="detail-value">${station.city||'—'}</span></div>
+      <div class="detail-row"><span class="detail-label">Operator</span><span class="detail-value" style="font-size:12px">${station.operator||'—'}</span></div>
+      <div class="detail-row"><span class="detail-label">Total machines</span><span class="detail-value" style="font-size:20px;color:#4ea8de">${station.machine_count||1}</span></div>
+      <div class="detail-row"><span class="detail-label">Avg power</span><span class="detail-value">${(station.avg_power_kw||7.2).toFixed(1)} kW</span></div>
+      <div class="detail-row"><span class="detail-label">Type</span><span class="detail-value">${station.type||'—'}</span></div>
+      <div class="detail-row"><span class="detail-label">Outage risk</span><span class="detail-value" style="color:${(station.outage_probability||0)>0.5?'#ef4444':'#22c55e'}">${((station.outage_probability||0)*100).toFixed(0)}%</span></div>
+      <div class="detail-row"><span class="detail-label">Registry status</span><span class="detail-value" style="font-size:12px">${station.status||'—'}</span></div>
+    </div>`;
+
+  // Load machines
+  html += `<div style="font-size:12px;color:#666;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.6px">Charging machines</div>`;
+  document.getElementById('station-detail-content').innerHTML = html + '<div style="color:#888;font-size:13px">Loading machines...</div>';
+
+  try {
+    const res = await fetch(`/api/stations/${station.station_id}/machines`);
+    const machines = await res.json();
+    let machHtml = '';
+    machines.forEach((m,i) => {
+      const mStatus = m.status && m.status.toLowerCase().includes('not started') ? 'Offline' : 'Operational';
+      const mColor = STATUS_COLOR[mStatus]||'#888';
+      const mIcon = m.type==='DC Fast' ? '⚡' : '🔌';
+      machHtml += `
+        <div class="machine-row" onclick="showMachinePanel(${JSON.stringify(m).replace(/"/g,'&quot;')})">
+          <div class="machine-icon" style="background:${mColor}22">${mIcon}</div>
+          <div class="machine-info">
+            <div class="machine-name">Machine ${i+1}</div>
+            <div class="machine-meta">${m.type||'—'} · ${m.power_kw||7.2} kW</div>
+          </div>
+          <span class="machine-status status-${mStatus.toLowerCase().replace(' ','-')}">${mStatus}</span>
+        </div>`;
+    });
+    if (!machHtml) machHtml = '<div style="color:#888;font-size:13px">No machine data available.</div>';
+    html += machHtml;
+    html += `<button class="rpt-btn" onclick="openReport('${(station.name||'').replace(/'/g,"\\'")}')" style="margin-top:8px">⚑ Report a Problem</button>`;
+    document.getElementById('station-detail-content').innerHTML = html;
+  } catch(e) {
+    document.getElementById('station-detail-content').innerHTML = html + '<div style="color:#f87171;font-size:13px">Could not load machines.</div>';
+  }
+}
+
+// ── Machine detail ────────────────────────────────────────────────────────
+async function showMachinePanel(machine) {
+  showTab('machine');
+  document.getElementById('bc-machine').textContent = `${machine.type||'Machine'} · ${machine.power_kw||7.2} kW`;
+
+  const mStatus = machine.status && machine.status.toLowerCase().includes('not started') ? 'Offline' : 'Operational';
+  const cls = 'status-'+mStatus.toLowerCase().replace(' ','-');
+  const mIcon = machine.type==='DC Fast' ? '⚡' : '🔌';
+
+  let html = `
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div style="font-size:28px">${mIcon}</div>
+        <div>
+          <div style="font-weight:700;font-size:15px">${machine.type||'Charger'}</div>
+          <span class="machine-status ${cls}">${mStatus}</span>
+        </div>
+      </div>
+      <div class="detail-row"><span class="detail-label">Power output</span><span class="detail-value" style="font-size:20px;color:#4ea8de">${machine.power_kw||7.2} kW</span></div>
+      <div class="detail-row"><span class="detail-label">Machine ID</span><span class="detail-value" style="font-size:11px;color:#888">${machine.machine_id||'—'}</span></div>
+      <div class="detail-row"><span class="detail-label">Station</span><span class="detail-value" style="font-size:12px">${machine.name||'—'}</span></div>
+      <div class="detail-row"><span class="detail-label">Data source</span><span class="detail-value" style="font-size:11px">NRCan ZEVIP</span></div>
+      <div class="detail-row"><span class="detail-label">Reports filed</span><span class="detail-value">${machine.report_count||0}</span></div>
+    </div>`;
+
+  // Charge time estimate if user has car profile
+  if (_currentUser && _currentUser.car_model) {
+    const battPct = parseFloat(document.getElementById('battery-pct')?.value||50);
+    const target = _currentUser.charge_target || 80;
+    try {
+      const res = await fetch('/api/chargetime', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({car_model:_currentUser.car_model, current_pct:battPct, target_pct:target, charger_kw:machine.power_kw||7.2})
+      });
+      const ct = await res.json();
+      html += `
+        <div class="charge-estimate">
+          <div class="card-title">Estimated charge time — ${_currentUser.car_model}</div>
+          <div class="charge-time">${ct.hours_mins||'—'}</div>
+          <div class="charge-time-label">${battPct}% → ${target}% · ${ct.kwh_added||0} kWh · at ${ct.effective_kw||0} kW</div>
+          ${ct.note ? `<div style="font-size:11px;color:#6ee7b7;margin-top:6px">ℹ ${ct.note}</div>` : ''}
+        </div>`;
+    } catch(e) {}
+  } else {
+    html += `<div class="card" style="border-style:dashed;text-align:center;color:#666;font-size:13px">
+      Sign in and set your car model to see a personalised charge time estimate for this machine.
+    </div>`;
+  }
+
+  document.getElementById('machine-detail-content').innerHTML = html;
+}
+
+// ── Location / Near Me ────────────────────────────────────────────────────
+function locateMe() {
+  if (!navigator.geolocation) { alert('Geolocation not supported by your browser.'); return; }
+  navigator.geolocation.getCurrentPosition(pos => {
+    _userLat = pos.coords.latitude;
+    _userLon = pos.coords.longitude;
+    L.marker([_userLat,_userLon],{
+      icon:L.divIcon({html:'<div style="font-size:22px">📍</div>',className:'',iconSize:[24,24],iconAnchor:[12,24]})
+    }).addTo(map).bindTooltip('You are here');
+    map.setView([_userLat,_userLon],13);
+    renderNearby();
+    if (!layers.stations._map) layers.stations.addTo(map);
+  }, ()=>{ alert('Could not get your location. Please allow location access.'); });
+}
+
+function updateRadius(val) {
+  _radius = parseFloat(val);
+  document.getElementById('radius-val').textContent = val;
+  if (_userLat) renderNearby();
+}
+
+function updateRange() {
+  if (!_currentUser?.car_model) return;
+  const pct = parseFloat(document.getElementById('battery-pct').value||50);
+  fetch('/api/cars').then(r=>r.json()).then(()=>{
+    fetch('/api/chargetime',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({car_model:_currentUser.car_model,current_pct:pct,target_pct:pct,charger_kw:7.2})
+    }).then(r=>r.json()).then(ct=>{
+      document.getElementById('range-display').textContent = ct.reachable_km + ' km range';
+      // Auto-adjust radius to reachable range
+      const newRadius = Math.min(ct.reachable_km, 30);
+      _radius = newRadius;
+      document.getElementById('radius-slider').value = newRadius;
+      document.getElementById('radius-val').textContent = newRadius.toFixed(0);
+      if (_userLat) renderNearby();
+    });
+  });
+}
+
+async function renderNearby() {
+  const res = await fetch(`/api/stations/nearby?lat=${_userLat}&lon=${_userLon}&radius=${_radius}`);
+  const nearby = await res.json();
+  const list = document.getElementById('nearby-list');
+  if (!nearby.length) { list.innerHTML = '<div style="color:#888;font-size:13px;text-align:center;padding:16px">No stations within '+_radius+' km.</div>'; return; }
+  list.innerHTML = nearby.slice(0,20).map(s => {
+    const ws = s.weather_status||'Operational';
+    const color = STATUS_COLOR[ws]||'#888';
+    const cls = 'status-'+ws.toLowerCase().replace(' ','-');
+    const icon = s.type==='DC Fast'?'⚡':'🔌';
+    const displayName = s.name && s.name.length > 30 ? s.name.substring(0,28)+'…' : (s.name||'Station');
+    const cityLine = [s.city, s.distance_km+'km away', `${s.machine_count||1} machine${(s.machine_count||1)!==1?'s':''}`].filter(Boolean).join(' · ');
+    return `<div class="machine-row" onclick="showStationPanel(${JSON.stringify(s).replace(/"/g,'&quot;')});showTab('station')">
+      <div class="machine-icon" style="background:${color}22">${icon}</div>
+      <div class="machine-info">
+        <div class="machine-name">${displayName}</div>
+        <div class="machine-meta">${cityLine}</div>
+      </div>
+      <span class="machine-status ${cls}">${ws}</span>
+    </div>`;
+  }).join('');
+}
+
+// ── AI assistant ──────────────────────────────────────────────────────────
+async function askQuestion() {
+  const input = document.getElementById('ask-input');
+  const q = input.value.trim();
+  if (!q) return;
+  input.value = '';
+  document.getElementById('ask-answer').classList.remove('visible');
+  document.getElementById('nav-btn-wrap').classList.remove('visible');
+  document.getElementById('ask-loading').classList.add('visible');
+
+  // Include guest profile in request if available
+  const profile = getActiveProfile();
+  const body = {question:q, lat:_userLat, lon:_userLon, radius:_radius};
+  if (profile?.car_model) body.car_model = profile.car_model;
+  if (profile?.battery_pct) body.battery_pct = profile.battery_pct;
+
+  try {
+    const res = await fetch('/api/ask',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const data = await res.json();
+    document.getElementById('ask-answer-text').textContent = data.answer;
+    document.getElementById('ask-answer').classList.add('visible');
+    document.getElementById('limited-badge').style.display = data.limited_mode ? 'inline-block' : 'none';
+
+    // Show navigation button if a nearby station was found
+    if (data.navigation_target) {
+      _navTarget = data.navigation_target;
+      const nt = data.navigation_target;
+      document.getElementById('nav-info').textContent =
+        `${nt.name} · ${nt.distance_km} km away · ${nt.machines} machine${nt.machines!==1?'s':''} · ${nt.type}`;
+      document.getElementById('nav-btn-wrap').classList.add('visible');
+    }
+  } catch(e) {
+    document.getElementById('ask-answer-text').textContent = 'Could not reach AI assistant.';
+    document.getElementById('ask-answer').classList.add('visible');
+  }
+  document.getElementById('ask-loading').classList.remove('visible');
+}
+
+async function toggleMachines(stationId) {
+  const el = document.getElementById('machines_' + stationId);
+  const toggle = el.previousElementSibling;
+  if (!el) return;
+
+  if (el.style.display === 'block') {
+    el.style.display = 'none';
+    toggle.textContent = '🔌 Show charging machines ▾';
+    return;
+  }
+
+  toggle.textContent = 'Loading…';
+  try {
+    const res = await fetch(`/api/stations/${stationId}/machines`);
+    const machines = await res.json();
+    if (!machines.length) { el.innerHTML = '<div style="color:#9ca3af;font-size:12px">No machine data available.</div>'; }
+    else {
+      el.innerHTML = machines.map((m, i) => {
+        const isOffline = m.status && m.status.toLowerCase().includes('not started');
+        const statusColor = isOffline ? '#9ca3af' : '#22c55e';
+        const statusLabel = isOffline ? 'Offline' : 'Available';
+        const typeIcon = m.type === 'DC Fast' ? '⚡' : '🔌';
+        return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f3f4f6;font-size:12px">
+          <span style="font-size:14px">${typeIcon}</span>
+          <div style="flex:1">
+            <span style="color:#111;font-weight:600">Machine ${i+1}</span>
+            <span style="color:#6b7280"> · ${m.power_kw||7.2} kW · ${m.type||'—'}</span>
+          </div>
+          <span style="font-size:10px;font-weight:700;color:${statusColor}">${statusLabel}</span>
+        </div>`;
+      }).join('');
+    }
+    el.style.display = 'block';
+    toggle.textContent = '🔌 Hide machines ▴';
+  } catch(e) {
+    el.innerHTML = '<div style="color:#ef4444;font-size:12px">Could not load machines.</div>';
+    el.style.display = 'block';
+    toggle.textContent = '🔌 Hide machines ▴';
+  }
+}
+
+function openNavigation() {
+  if (!_navTarget) return;
+  const url = `https://www.google.com/maps/dir/?api=1&destination=${_navTarget.lat},${_navTarget.lon}&travelmode=driving`;
+  window.open(url, '_blank');
+}
+
+// ── Auth ──────────────────────────────────────────────────────────────────
+function switchAuth(mode) {
+  document.getElementById('auth-login').style.display = mode==='login'?'block':'none';
+  document.getElementById('auth-signup').style.display = mode==='signup'?'block':'none';
+  document.getElementById('tab-login-btn').classList.toggle('active', mode==='login');
+  document.getElementById('tab-signup-btn').classList.toggle('active', mode==='signup');
+  document.getElementById('auth-error').style.display='none';
+}
+
+function showAuthError(msg) {
+  const el=document.getElementById('auth-error');
+  el.textContent=msg; el.style.display='block';
+}
+
+async function doLogin() {
+  const u=document.getElementById('login-user').value.trim();
+  const p=document.getElementById('login-pass').value;
+  const res=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
+  const data=await res.json();
+  if (!res.ok) { showAuthError(data.error||'Login failed'); return; }
+  _currentUser=data.profile; _currentUser.username=data.username;
+  onLoggedIn();
+}
+
+async function doSignup() {
+  const u=document.getElementById('signup-user').value.trim();
+  const p=document.getElementById('signup-pass').value;
+  const car=document.getElementById('signup-car').value;
+  const res=await fetch('/api/signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p,car_model:car})});
+  const data=await res.json();
+  if (!res.ok) { showAuthError(data.error||'Signup failed'); return; }
+  if (car) await fetch('/api/profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({car_model:car})});
+  _currentUser={username:u, car_model:car, charge_target:80};
+  onLoggedIn();
+}
+
+function onLoggedIn() {
+  document.getElementById('auth-overlay').style.display='none';
+  document.getElementById('user-pill-name').textContent = _currentUser.username;
+  document.getElementById('profile-avatar').textContent = _currentUser.username[0].toUpperCase();
+  document.getElementById('profile-name').textContent = _currentUser.username;
+  document.getElementById('profile-sub').textContent = _currentUser.car_model || 'No car set';
+  document.getElementById('profile-logged-in').style.display='block';
+  document.getElementById('profile-logged-out').style.display='none';
+  document.getElementById('guest-vehicle-card').style.display='none'; // hide guest card when logged in
+  if (_currentUser.car_model) {
+    document.getElementById('profile-car').value = _currentUser.car_model;
+    document.getElementById('battery-section').style.display='block';
+  }
+  if (_currentUser.charge_target) document.getElementById('profile-target').value = _currentUser.charge_target;
+}
+
+function continueAsGuest() {
+  _currentUser = null;
+  document.getElementById('auth-overlay').style.display='none';
+  document.getElementById('guest-vehicle-card').style.display='block';
+  // Restore previous guest session if exists
+  const saved = loadGuestSession();
+  if (saved) {
+    if (saved.car_model) document.getElementById('guest-car-select').value = saved.car_model;
+    if (saved.battery_pct) document.getElementById('guest-battery').value = saved.battery_pct;
+    if (saved.charge_target) document.getElementById('guest-target').value = saved.charge_target;
+    updateGuestRange();
+  }
+}
+
+async function doLogout() {
+  await fetch('/api/logout',{method:'POST'});
+  _currentUser=null;
+  document.getElementById('user-pill-name').textContent='Guest';
+  document.getElementById('profile-logged-in').style.display='none';
+  document.getElementById('profile-logged-out').style.display='block';
+  document.getElementById('battery-section').style.display='none';
+}
+
+async function saveProfile() {
+  const car=document.getElementById('profile-car').value;
+  const target=parseInt(document.getElementById('profile-target').value);
+  await fetch('/api/profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({car_model:car,charge_target:target})});
+  if (_currentUser) { _currentUser.car_model=car; _currentUser.charge_target=target; }
+  document.getElementById('profile-sub').textContent=car||'No car set';
+  document.getElementById('battery-section').style.display=car?'block':'none';
+  alert('Profile saved.');
+}
+
+// ── Reports ───────────────────────────────────────────────────────────────
+function openReport(stationName) {
+  showTab('reports');
+  document.getElementById('rpt-station').value = stationName;
+}
+
+async function submitReport() {
+  const station=document.getElementById('rpt-station').value.trim();
+  const type=document.getElementById('rpt-type').value;
+  const desc=document.getElementById('rpt-desc').value.trim();
+  if (!station||!desc) { alert('Please fill in station name and description.'); return; }
+  const res=await fetch('/api/report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({station_name:station,issue_type:type,description:desc,latitude:_userLat,longitude:_userLon})});
+  if (res.ok) {
+    document.getElementById('rpt-success').style.display='block';
+    document.getElementById('rpt-station').value='';
+    document.getElementById('rpt-desc').value='';
+    setTimeout(()=>document.getElementById('rpt-success').style.display='none',4000);
+    loadReports();
+  }
+}
+
+async function loadReports() {
+  const res=await fetch('/api/reports');
+  const reports=await res.json();
+  const list=document.getElementById('reports-list');
+  if (!reports.length) { list.innerHTML='<div style="color:#666;font-size:13px;text-align:center;padding:12px">No reports yet.</div>'; return; }
+  list.innerHTML=reports.slice().reverse().slice(0,15).map(r=>`
+    <div class="card" style="margin-bottom:8px">
+      <div style="font-weight:600;font-size:13px">${r.station_name}</div>
+      <div style="font-size:11px;color:#f4730a;margin:2px 0">${(r.issue_type||'').replace(/_/g,' ')}</div>
+      <div style="font-size:12px;color:#aaa">${r.description}</div>
+      <div style="font-size:10px;color:#555;margin-top:4px">${r.timestamp?new Date(r.timestamp).toLocaleString():''} ${r.reported_by&&r.reported_by!=='anonymous'?'· '+r.reported_by:''}</div>
+    </div>`).join('');
+}
+
+// ── Location prompt ───────────────────────────────────────────────────────
+function showLocationPrompt() {
+  // Only show if location not already set and not dismissed this session
+  if (!sessionStorage.getItem('location_prompted')) {
+    document.getElementById('location-overlay').classList.add('visible');
+  }
+}
+
+function useMyLocation() {
+  document.getElementById('location-overlay').classList.remove('visible');
+  sessionStorage.setItem('location_prompted', '1');
+  locateMe();
+}
+
+function showManualInput() {
+  document.getElementById('manual-input-wrap').style.display = 'block';
+  document.getElementById('manual-location').focus();
+}
+
+function goManualLocation() {
+  const input = document.getElementById('manual-location').value.trim().toLowerCase();
+  if (!input) return;
+
+  // Match against area names in our data
+  let best = null, bestScore = 0;
+  AREAS.forEach(a => {
+    const areaLower = (a.area || a.fsa).toLowerCase();
+    if (areaLower.includes(input) || input.includes(areaLower.split(' ')[0])) {
+      const score = areaLower === input ? 100 : areaLower.startsWith(input) ? 50 : 10;
+      if (score > bestScore) { bestScore = score; best = a; }
+    }
+  });
+
+  // Also check city names from stations
+  if (!best) {
+    STATIONS.forEach(s => {
+      const city = (s.city || '').toLowerCase();
+      if (city && city.includes(input)) { best = {latitude: s.latitude, longitude: s.longitude, area: s.city}; }
+    });
+  }
+
+  if (best) {
+    _userLat = best.latitude; _userLon = best.longitude;
+    map.setView([_userLat, _userLon], 13);
+    L.marker([_userLat, _userLon], {
+      icon: L.divIcon({html:'<div style="font-size:22px">📍</div>', className:'', iconSize:[24,24], iconAnchor:[12,24]})
+    }).addTo(map).bindTooltip(`Showing results near: ${best.area || input}`).openTooltip();
+    renderNearby();
+    if (!layers.stations._map) layers.stations.addTo(map);
+    document.getElementById('btn-stations').classList.add('on');
+    document.getElementById('location-overlay').classList.remove('visible');
+    sessionStorage.setItem('location_prompted', '1');
+  } else {
+    document.getElementById('manual-location').style.borderColor = '#ef4444';
+    document.getElementById('manual-location').placeholder = 'Not found — try Markham, Scarborough, Oakville…';
+  }
+}
+
+function skipLocation() {
+  document.getElementById('location-overlay').classList.remove('visible');
+  sessionStorage.setItem('location_prompted', '1');
+}
+
+// Show location prompt after auth is done (slight delay for smooth UX)
+window.addEventListener('load', () => setTimeout(showLocationPrompt, 800));
+
+// ── Map floating layer toggles ────────────────────────────────────────────
+function mapToggle(layerName, btnId) {
+  const btn = document.getElementById(btnId);
+  const isOn = btn.classList.contains('on');
+  if (isOn) { map.removeLayer(layers[layerName]); btn.classList.remove('on'); }
+  else { layers[layerName].addTo(map); btn.classList.add('on'); }
+}
+
+// ── Tab switching ─────────────────────────────────────────────────────────
+const TAB_VIEWS = ['overview','nearby','winter','station','machine','ml','reports','profile'];
+function showTab(name) {
+  TAB_VIEWS.forEach(t=>{ document.getElementById(`view-${t}`).classList.toggle('active', t===name); });
+  document.querySelectorAll('#panel-tabs .tab').forEach((el,i)=>{
+    el.classList.toggle('active',['overview','nearby','winter','ml','reports','profile'][i]===name);
+  });
+  if (name==='reports') loadReports();
+  if (name==='winter') loadWinterHistory();
+}
+
+// ── Winter history ─────────────────────────────────────────────────────────
+let _winterLoaded = false;
+function loadWinterHistory() {
+  if (_winterLoaded) return;
+  fetch('/api/winter-history')
+    .then(r => r.json())
+    .then(data => {
+      _winterLoaded = true;
+      renderWinterHistory(data);
+      document.getElementById('winter-loading').style.display = 'none';
+      document.getElementById('winter-content').style.display = 'block';
+    })
+    .catch(() => {
+      document.getElementById('winter-loading').textContent = 'Failed to load winter data.';
+    });
+}
+
+function _eventClass(event) {
+  const e = (event || '').toLowerCase();
+  if (e.includes('blizzard')) return 'event-blizzard';
+  if (e.includes('extreme')) return 'event-extreme';
+  if (e.includes('cold snap')) return 'event-cold-snap';
+  if (e.includes('snow')) return 'event-snow';
+  if (e.includes('wind')) return 'event-wind';
+  return 'event-normal';
+}
+
+function renderWinterHistory(data) {
+  const history = data.history || [];
+  const future = data.future_projections || [];
+
+  // ── Past winters: coldest day rows ──────────────────────────────────────
+  const histEl = document.getElementById('winter-history-rows');
+  histEl.innerHTML = history.map(w => {
+    const cd = w.coldest_day;
+    const st = w.worst_storm;
+    const gi = w.grid_impact;
+    const ss = w.season_stats;
+    const ec = _eventClass(cd.event);
+    return `
+      <div class="winter-season">
+        <div class="winter-label">${w.label}</div>
+        <div>
+          <span class="winter-coldest">${cd.temp_min_c}°C</span>
+          <span class="winter-event-pill ${ec}">${cd.event}</span>
+          <span class="winter-meta" style="margin-left:4px">${cd.date}</span>
+        </div>
+        <div class="winter-meta" style="margin-top:3px">
+          Worst storm: ${st.snowfall_cm}cm snow · ${st.wind_kmh}km/h wind · ${st.date}
+        </div>
+        <div class="winter-meta">
+          ${ss.cold_days_below_minus10} days below −10°C &nbsp;·&nbsp;
+          ${ss.extreme_cold_days_below_minus20} extreme (&lt;−20°C) &nbsp;·&nbsp;
+          ${ss.total_snowfall_cm}cm total snow
+        </div>
+        <div class="winter-meta" style="color:#f97316">
+          ${gi.overloaded_fsas_at_peak} FSAs overloaded at peak cold
+        </div>
+      </div>`;
+  }).join('');
+
+  // ── Bar chart: mean risk ratio at peak ──────────────────────────────────
+  const allStress = history.map(w => w.grid_impact.mean_risk_ratio_at_peak);
+  const maxStress = Math.max(...allStress, 0.01);
+  const barsEl = document.getElementById('winter-bars');
+  barsEl.innerHTML = history.map(w => {
+    const v = w.grid_impact.mean_risk_ratio_at_peak;
+    const pct = Math.round((v / maxStress) * 100);
+    const col = v >= 1.0 ? '#ef4444' : v >= 0.75 ? '#f97316' : '#4ea8de';
+    const shortLabel = w.label.replace('Winter ', '');
+    return `<div class="bar-row">
+      <div class="bar-label">${shortLabel}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${col}"></div></div>
+      <div class="bar-val">${v.toFixed(2)}</div>
+    </div>`;
+  }).join('');
+
+  // ── Bar chart: overloaded FSAs ──────────────────────────────────────────
+  const allOver = history.map(w => w.grid_impact.overloaded_fsas_at_peak);
+  const maxOver = Math.max(...allOver, 1);
+  const overEl = document.getElementById('winter-overload-bars');
+  overEl.innerHTML = history.map(w => {
+    const v = w.grid_impact.overloaded_fsas_at_peak;
+    const pct = Math.round((v / maxOver) * 100);
+    const shortLabel = w.label.replace('Winter ', '');
+    return `<div class="bar-row">
+      <div class="bar-label">${shortLabel}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:#ef4444"></div></div>
+      <div class="bar-val">${v}</div>
+    </div>`;
+  }).join('');
+
+  // ── Future winters ──────────────────────────────────────────────────────
+  const futEl = document.getElementById('winter-future');
+  futEl.innerHTML = future.map(f => {
+    const m = f.scenarios.moderate;
+    const typOver = m.overloaded_fsas_typical_cold;
+    const sevOver = m.overloaded_fsas_severe_cold;
+    const typStress = m.mean_risk_ratio_typical;
+    const sevStress = m.mean_risk_ratio_severe;
+    const overClass = sevOver > 20 ? 'danger' : sevOver > 10 ? 'warn' : '';
+    return `<div class="future-card">
+      <div class="future-label">${f.label}</div>
+      <div class="future-row">
+        <span class="future-key">EVs vs today</span>
+        <span class="future-val">+${Math.round((m.ev_multiplier - 1) * 100)}%</span>
+      </div>
+      <div class="future-row">
+        <span class="future-key">Typical cold: overloaded FSAs</span>
+        <span class="future-val ${typOver > 10 ? 'warn' : ''}">${typOver}</span>
+      </div>
+      <div class="future-row">
+        <span class="future-key">Severe cold: overloaded FSAs</span>
+        <span class="future-val ${overClass}">${sevOver}</span>
+      </div>
+      <div class="future-row">
+        <span class="future-key">Mean risk ratio — typical</span>
+        <span class="future-val">${typStress.toFixed(2)}</span>
+      </div>
+      <div class="future-row">
+        <span class="future-key">Mean risk ratio — severe</span>
+        <span class="future-val ${sevStress >= 1.0 ? 'danger' : sevStress >= 0.8 ? 'warn' : ''}">${sevStress.toFixed(2)}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+</script>
+</body>
+</html>

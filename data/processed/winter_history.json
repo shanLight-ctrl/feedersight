@@ -1,0 +1,187 @@
+{
+  "history": [
+    {
+      "label": "Winter 2022\u201323",
+      "coldest_day": {
+        "date": "2023-02-04",
+        "temp_min_c": -25.1,
+        "event": "Extreme Cold"
+      },
+      "worst_storm": {
+        "date": "2023-02-27",
+        "temp_min_c": -12.1,
+        "snowfall_cm": 6.3,
+        "wind_kmh": 40.8,
+        "severity": 0.66,
+        "event": "Heavy Snow"
+      },
+      "snowiest_day": {
+        "date": "2023-01-25",
+        "snowfall_cm": 11.0
+      },
+      "season_stats": {
+        "cold_days_below_minus10": 12,
+        "extreme_cold_days_below_minus20": 2,
+        "storm_days": 24,
+        "avg_temp_min_c": -4.3,
+        "total_snowfall_cm": 69.0
+      },
+      "grid_impact": {
+        "peak_weather_factor": 1.45,
+        "avg_weather_factor": 1.25,
+        "mean_risk_ratio_at_peak": 1.048,
+        "overloaded_fsas_at_peak": 16
+      }
+    },
+    {
+      "label": "Winter 2023\u201324",
+      "coldest_day": {
+        "date": "2024-01-20",
+        "temp_min_c": -14.6,
+        "event": "Cold Snap"
+      },
+      "worst_storm": {
+        "date": "2024-01-12",
+        "temp_min_c": -3.5,
+        "snowfall_cm": 5.1,
+        "wind_kmh": 40.4,
+        "severity": 0.566,
+        "event": "Heavy Snow"
+      },
+      "snowiest_day": {
+        "date": "2024-01-09",
+        "snowfall_cm": 8.7
+      },
+      "season_stats": {
+        "cold_days_below_minus10": 8,
+        "extreme_cold_days_below_minus20": 0,
+        "storm_days": 18,
+        "avg_temp_min_c": -2.7,
+        "total_snowfall_cm": 40.1
+      },
+      "grid_impact": {
+        "peak_weather_factor": 1.35,
+        "avg_weather_factor": 1.23,
+        "mean_risk_ratio_at_peak": 1.031,
+        "overloaded_fsas_at_peak": 16
+      }
+    },
+    {
+      "label": "Winter 2024\u201325",
+      "coldest_day": {
+        "date": "2025-01-22",
+        "temp_min_c": -18.5,
+        "event": "Extreme Cold"
+      },
+      "worst_storm": {
+        "date": "2025-02-12",
+        "temp_min_c": -10.6,
+        "snowfall_cm": 4.8,
+        "wind_kmh": 31.7,
+        "severity": 0.563,
+        "event": "Cold Snap"
+      },
+      "snowiest_day": {
+        "date": "2025-02-16",
+        "snowfall_cm": 13.9
+      },
+      "season_stats": {
+        "cold_days_below_minus10": 24,
+        "extreme_cold_days_below_minus20": 0,
+        "storm_days": 23,
+        "avg_temp_min_c": -6.4,
+        "total_snowfall_cm": 76.8
+      },
+      "grid_impact": {
+        "peak_weather_factor": 1.35,
+        "avg_weather_factor": 1.26,
+        "mean_risk_ratio_at_peak": 1.031,
+        "overloaded_fsas_at_peak": 16
+      }
+    }
+  ],
+  "future_projections": [
+    {
+      "label": "Winter 2026\u201327",
+      "year": 2026,
+      "scenarios": {
+        "conservative": {
+          "ev_multiplier": 1.2,
+          "overloaded_fsas_typical_cold": 19,
+          "overloaded_fsas_severe_cold": 19,
+          "mean_risk_ratio_typical": 1.077,
+          "mean_risk_ratio_severe": 1.098
+        },
+        "moderate": {
+          "ev_multiplier": 1.35,
+          "overloaded_fsas_typical_cold": 19,
+          "overloaded_fsas_severe_cold": 21,
+          "mean_risk_ratio_typical": 1.112,
+          "mean_risk_ratio_severe": 1.135
+        },
+        "aggressive": {
+          "ev_multiplier": 1.5,
+          "overloaded_fsas_typical_cold": 21,
+          "overloaded_fsas_severe_cold": 21,
+          "mean_risk_ratio_typical": 1.147,
+          "mean_risk_ratio_severe": 1.172
+        }
+      }
+    },
+    {
+      "label": "Winter 2027\u201328",
+      "year": 2027,
+      "scenarios": {
+        "conservative": {
+          "ev_multiplier": 1.44,
+          "overloaded_fsas_typical_cold": 21,
+          "overloaded_fsas_severe_cold": 21,
+          "mean_risk_ratio_typical": 1.133,
+          "mean_risk_ratio_severe": 1.158
+        },
+        "moderate": {
+          "ev_multiplier": 1.82,
+          "overloaded_fsas_typical_cold": 25,
+          "overloaded_fsas_severe_cold": 25,
+          "mean_risk_ratio_typical": 1.221,
+          "mean_risk_ratio_severe": 1.253
+        },
+        "aggressive": {
+          "ev_multiplier": 2.25,
+          "overloaded_fsas_typical_cold": 29,
+          "overloaded_fsas_severe_cold": 29,
+          "mean_risk_ratio_typical": 1.32,
+          "mean_risk_ratio_severe": 1.359
+        }
+      }
+    },
+    {
+      "label": "Winter 2028\u201329",
+      "year": 2028,
+      "scenarios": {
+        "conservative": {
+          "ev_multiplier": 1.73,
+          "overloaded_fsas_typical_cold": 21,
+          "overloaded_fsas_severe_cold": 25,
+          "mean_risk_ratio_typical": 1.199,
+          "mean_risk_ratio_severe": 1.229
+        },
+        "moderate": {
+          "ev_multiplier": 2.46,
+          "overloaded_fsas_typical_cold": 30,
+          "overloaded_fsas_severe_cold": 32,
+          "mean_risk_ratio_typical": 1.369,
+          "mean_risk_ratio_severe": 1.411
+        },
+        "aggressive": {
+          "ev_multiplier": 3.38,
+          "overloaded_fsas_typical_cold": 49,
+          "overloaded_fsas_severe_cold": 50,
+          "mean_risk_ratio_typical": 1.58,
+          "mean_risk_ratio_severe": 1.638
+        }
+      }
+    }
+  ],
+  "current_overloaded": 13
+}

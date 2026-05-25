@@ -1,0 +1,11 @@
+area,fsa,latitude,longitude,ev_count,charger_count,risk_level,priority_score,ev_count_source
+Markham Southeast,L3S,43.8486,-79.2617,946,71,Overload,5.588709813182934,Ontario EV registrations by FSA (user CSV)
+Newmarket Northeast,L3Y,44.0565,-79.4555,1058,45,Overload,3.9238754549436794,Ontario EV registrations by FSA (user CSV)
+Thornhill East,L3T,43.8227,-79.3946,1380,197,Overload,3.041148409094328,Ontario EV registrations by FSA (user CSV)
+Markham Outer Southwest,L3R,43.8479,-79.3288,2084,85,Overload,2.6641811946632474,Ontario EV registrations by FSA (user CSV)
+Markham Central,L3P,43.8769,-79.2686,1061,43,Overload,2.336035041125228,Ontario EV registrations by FSA (user CSV)
+Newmarket Southwest,L3X,44.0433,-79.4912,1456,41,Overload,1.2208302686950903,Ontario EV registrations by FSA (user CSV)
+Bradford,L3Z,44.1168,-79.5663,945,7,Overload,1.2169992886568428,Ontario EV registrations by FSA (user CSV)
+Orillia,L3V,44.6087,-79.4207,536,9,Overload,1.1441565803793754,Ontario EV registrations by FSA (user CSV)
+Oakville North,L6H,43.4881,-79.7098,3229,69,Warning,0.9069825013021942,Ontario EV registrations by FSA (user CSV)
+Milton,L9T,43.5148,-79.884,2857,17,Warning,0.8937585391881893,Ontario EV registrations by FSA (user CSV)
