@@ -5,12 +5,15 @@ from __future__ import annotations
 import hashlib
 import json
 import sys
+import threading
+import time
+import queue
 from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
 from dotenv import load_dotenv
-from flask import Flask, jsonify, render_template, request, session
+from flask import Flask, jsonify, render_template, request, session, Response
 
 load_dotenv()
 
@@ -177,8 +180,46 @@ areas = areas.merge(
     on="fsa", how="left",
 )
 
+print("Running initial forecasts...")
+from forecast_model import forecast_all
+_forecast_cache = {f["fsa"]: f for f in forecast_all(areas)}
+
 print("Building winter history...")
 winter_report = build_winter_report(areas)
+
+# ── Continuous anomaly detection background thread ────────────────────────
+_anomaly_queue: queue.Queue = queue.Queue(maxsize=50)
+_live_anomalies: list = []
+_anomaly_lock = threading.Lock()
+
+def _anomaly_worker():
+    while True:
+        time.sleep(300)  # re-run every 5 minutes
+        try:
+            refreshed = station_outage_probability(stations, weather)
+            new_flags = anomaly_model.flag(refreshed, _load_reports())
+            flagged = new_flags[new_flags["is_anomaly"] == True]
+            with _anomaly_lock:
+                _live_anomalies.clear()
+                for _, s in flagged.iterrows():
+                    alert = {
+                        "station_id":    s.get("station_id", ""),
+                        "name":          s.get("name", "Unknown"),
+                        "lat":           s.get("latitude"),
+                        "lon":           s.get("longitude"),
+                        "reason":        s.get("anomaly_reason", "outlier"),
+                        "weather_status": s.get("weather_status", ""),
+                        "detected_at":   datetime.utcnow().isoformat() + "Z",
+                    }
+                    _live_anomalies.append(alert)
+                    try:
+                        _anomaly_queue.put_nowait({**alert, "type": "anomaly"})
+                    except queue.Full:
+                        pass
+        except Exception:
+            pass
+
+threading.Thread(target=_anomaly_worker, daemon=True).start()
 
 print("Ready — http://localhost:5000")
 
@@ -426,6 +467,109 @@ def get_cars():
 @app.route("/api/winter-history")
 def get_winter_history():
     return jsonify(winter_report)
+
+
+@app.route("/api/forecast/<fsa>")
+def get_forecast(fsa: str):
+    if fsa in _forecast_cache:
+        return jsonify(_forecast_cache[fsa])
+    from forecast_model import forecast_fsa
+    row = areas[areas["fsa"] == fsa]
+    if row.empty:
+        return jsonify({"error": "FSA not found"}), 404
+    r = row.iloc[0]
+    result = forecast_fsa(
+        fsa=fsa,
+        ev_count=float(r.get("ev_count", 0) or 0),
+        base_load_kw=float(r.get("base_load_kw", 5000) or 5000),
+        feeder_capacity_kw=float(r.get("feeder_capacity_kw", 8000) or 8000),
+        avg_charger_kw=float(r.get("avg_charger_power_kw", 7.2) or 7.2),
+    )
+    _forecast_cache[fsa] = result
+    return jsonify(result)
+
+
+@app.route("/api/forecast/all/summary")
+def forecast_summary():
+    summary = []
+    for fsa, f in _forecast_cache.items():
+        summary.append({
+            "fsa":              fsa,
+            "urgency":          f["urgency"],
+            "months_to_overload": f["months_to_overload"],
+            "overload_date":    f["overload_date_moderate"],
+            "current_ratio":    f["current_ratio"],
+        })
+    summary.sort(key=lambda x: x["months_to_overload"] or 999)
+    return jsonify(summary)
+
+
+@app.route("/api/demand-response", methods=["POST"])
+def demand_response():
+    from demand_response import optimize, neighbourhood_schedule
+    data = request.get_json(force=True)
+    mode = data.get("mode", "fleet")
+
+    if mode == "neighbourhood" and data.get("fsa"):
+        return jsonify(neighbourhood_schedule(
+            areas,
+            fsa=data["fsa"],
+            num_evs=data.get("num_evs"),
+            weather_factor=weather.get("severity_factor", 1.0),
+        ))
+
+    fsa = data.get("fsa", "")
+    row = areas[areas["fsa"] == fsa] if fsa else pd.DataFrame()
+    if not row.empty:
+        r = row.iloc[0]
+        base_kw  = float(r.get("base_load_kw", 5000) or 5000)
+        cap_kw   = float(r.get("feeder_capacity_kw", 8000) or 8000)
+        avg_kw   = float(r.get("avg_charger_power_kw", 7.2) or 7.2)
+    else:
+        base_kw = float(data.get("base_load_kw", 5000))
+        cap_kw  = float(data.get("feeder_capacity_kw", 8000))
+        avg_kw  = float(data.get("avg_charge_kw", 7.2))
+
+    return jsonify(optimize(
+        base_load_kw=base_kw,
+        feeder_capacity_kw=cap_kw,
+        num_evs=int(data.get("num_evs", 50)),
+        avg_charge_kw=avg_kw,
+        avg_energy_needed_kwh=float(data.get("energy_kwh", 30)),
+        weather_factor=weather.get("severity_factor", 1.0),
+    ))
+
+
+@app.route("/api/anomalies/live")
+def live_anomalies():
+    with _anomaly_lock:
+        return jsonify(_live_anomalies)
+
+
+@app.route("/api/anomalies/stream")
+def anomaly_stream():
+    def generate():
+        yield "data: {\"type\":\"connected\"}\n\n"
+        last_ping = time.time()
+        while True:
+            try:
+                event = _anomaly_queue.get(timeout=25)
+                yield f"data: {json.dumps(event)}\n\n"
+            except queue.Empty:
+                if time.time() - last_ping > 25:
+                    yield "data: {\"type\":\"ping\"}\n\n"
+                    last_ping = time.time()
+    return Response(generate(), mimetype="text/event-stream",
+                    headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+@app.route("/api/live-stations")
+def live_stations_route():
+    from live_stations import fetch_live
+    lat = float(request.args.get("lat", 43.75))
+    lon = float(request.args.get("lon", -79.45))
+    radius = float(request.args.get("radius", 60))
+    return jsonify(fetch_live(lat, lon, radius))
 
 
 @app.route("/")

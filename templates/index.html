@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FeederSight — EV Grid Intelligence</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <style>
@@ -211,47 +212,115 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
 .flow-arrow { font-size: 14px; opacity: 0.75; animation: flow-pulse 2.4s ease-in-out infinite; }
 @keyframes flow-pulse { 0%,100%{opacity:0.4;transform:scale(0.9)} 50%{opacity:0.9;transform:scale(1.1)} }
 
-/* ── Simulate panel ── */
-.sim-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 4px; }
+/* ── Priority site marker ── */
+.priority-pin { position:relative; width:36px; height:36px; display:flex; align-items:center; justify-content:center; }
+.priority-pin-ring { position:absolute; inset:-5px; border-radius:50%; border:2px solid #f59e0b; animation:priority-pulse 2s ease-in-out infinite; }
+@keyframes priority-pulse { 0%,100%{opacity:0.9;transform:scale(1)} 50%{opacity:0.3;transform:scale(1.5)} }
+.priority-pin-inner { width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg,#f59e0b,#d97706); color:#fff; border:2.5px solid #fff; box-shadow:0 3px 12px rgba(245,158,11,0.7); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; z-index:1; }
+
+/* ── Live station marker ── */
+.live-pin { position:relative; display:flex; align-items:center; justify-content:center; }
+.live-pin-inner { border-radius:6px; border:2px solid #fff; box-shadow:0 2px 8px rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; color:#fff; padding:3px 6px; white-space:nowrap; z-index:1; }
+.live-badge { display:inline-block; font-size:10px; font-weight:700; padding:2px 6px; border-radius:10px; margin-right:4px; }
+.live-available { background:#16a34a; color:#fff; }
+.live-inuse { background:#d97706; color:#fff; }
+.live-unavailable { background:#6b7280; color:#fff; }
+.live-partial { background:#0284c7; color:#fff; }
+.live-unknown { background:#374151; color:#aaa; }
+
+/* ── Caution flag marker ── */
+.caution-pin { position:relative; display:flex; align-items:center; justify-content:center; }
+.caution-pin-ring { position:absolute; inset:-6px; border-radius:50%; border:2px solid #ef4444; animation:caution-pulse 1.6s ease-in-out infinite; }
+@keyframes caution-pulse { 0%,100%{opacity:0.8;transform:scale(1)} 50%{opacity:0.1;transform:scale(1.6)} }
+.caution-pin-inner { width:30px; height:30px; border-radius:50%; background:rgba(239,68,68,0.15); border:2px solid #ef4444; display:flex; align-items:center; justify-content:center; font-size:18px; z-index:1; }
+
+/* ── Role selection overlay ── */
+#role-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.88); z-index:9996; display:none; align-items:center; justify-content:center; }
+#role-overlay.visible { display:flex; }
+.role-box { background:#1a1d27; border:1px solid #2e3147; border-radius:16px; padding:36px 32px; width:440px; text-align:center; }
+.role-box h3 { font-size:22px; font-weight:700; color:#fff; margin-bottom:6px; }
+.role-box p { font-size:13px; color:#888; margin-bottom:28px; line-height:1.5; }
+.role-option { display:flex; align-items:center; gap:16px; background:#252836; border:2px solid #2e3147; border-radius:12px; padding:16px 20px; cursor:pointer; margin-bottom:12px; text-align:left; transition:border-color 0.18s, background 0.18s; }
+.role-option:hover { border-color:#4ea8de; background:#1e2535; }
+.role-option .role-icon { font-size:30px; flex-shrink:0; }
+.role-option .role-label { font-size:15px; font-weight:700; color:#fff; }
+.role-option .role-sub { font-size:12px; color:#888; margin-top:3px; line-height:1.4; }
+.role-option.utility:hover { border-color:#a78bfa; background:#1e1a35; }
+
+/* ── Simulate floating panel ── */
+#sim-float-panel { position:absolute; bottom:320px; right:10px; z-index:1000; background:#1a1d27; border:1px solid #3e4460; border-radius:12px; padding:14px; width:272px; box-shadow:0 4px 24px rgba(0,0,0,0.6); display:none; }
+#sim-float-panel.visible { display:block; }
+.sim-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
 .sim-card { background: #252836; border: 1px solid #2e3147; border-radius: 10px; padding: 10px 8px; text-align: center; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
 .sim-card:hover { border-color: #4ea8de; background: #1e2535; }
 .sim-card.active { border-color: #4ea8de; background: #1a2d45; }
-.sim-icon { font-size: 24px; margin-bottom: 4px; }
-.sim-name { font-size: 12px; font-weight: 700; color: #e0e0e0; }
+.sim-icon { font-size: 22px; margin-bottom: 3px; }
+.sim-name { font-size: 11px; font-weight: 700; color: #e0e0e0; }
 .sim-sub { font-size: 10px; color: #666; margin-top: 2px; }
-.sim-stat-box { background: #252836; border: 1px solid #2e3147; border-radius: 8px; padding: 9px 10px; }
-.sim-stat-val { font-size: 20px; font-weight: 700; color: #fff; }
-.sim-stat-key { font-size: 10px; color: #666; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
-.sim-problem-item { display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px solid #2e3147; font-size: 12px; color: #ccc; line-height: 1.4; }
-.sim-problem-item:last-child { border-bottom: none; }
-.sim-problem-dot { width: 6px; height: 6px; border-radius: 50%; background: #f97316; margin-top: 5px; flex-shrink: 0; }
+/* ── Active simulation bar ── */
+#sim-active-bar { display:none; background:#1a2535; border-bottom:1px solid #2e4060; padding:7px 16px; align-items:center; gap:10px; font-size:13px; }
+#sim-active-bar.visible { display:flex; }
+#sim-bar-stats { display:flex; gap:14px; flex:1; font-size:12px; color:#93c5fd; }
+#sim-bar-clear { background:none; border:1px solid #3e4460; border-radius:6px; color:#888; cursor:pointer; font-size:11px; padding:3px 10px; }
+#sim-bar-clear:hover { border-color:#ef4444; color:#ef4444; }
 
-/* ── Winter panel ── */
-.winter-season { border-bottom: 1px solid #2e3147; padding: 8px 0; }
-.winter-season:last-child { border-bottom: none; }
-.winter-label { font-size: 12px; font-weight: 700; color: #93c5fd; margin-bottom: 4px; }
-.winter-coldest { font-size: 20px; font-weight: 700; color: #60a5fa; }
-.winter-meta { font-size: 11px; color: #888; margin-top: 1px; }
-.winter-event-pill { display: inline-block; font-size: 10px; padding: 1px 7px; border-radius: 10px; font-weight: 600; margin-left: 5px; }
-.event-blizzard { background: #1e3a5f; color: #93c5fd; }
-.event-extreme { background: #1c1e4a; color: #a5b4fc; }
-.event-cold-snap { background: #1a2840; color: #7dd3fc; }
-.event-snow { background: #1a2035; color: #bfdbfe; }
-.event-wind { background: #2d1f0a; color: #fcd34d; }
-.event-normal { background: #1a2535; color: #94a3b8; }
+/* ── Grid Tools panel ── */
+.gt-picker { display:flex; flex-wrap:wrap; gap:6px; padding:12px 12px 0; }
+.gt-chip { flex:1; min-width:calc(33% - 4px); background:#252836; border:1px solid #2e3147; border-radius:8px; padding:8px 4px; text-align:center; cursor:pointer; transition:border-color 0.15s,background 0.15s; }
+.gt-chip:hover { border-color:#4ea8de; }
+.gt-chip.active { border-color:var(--chip-color,#4ea8de); background:color-mix(in srgb,var(--chip-color,#4ea8de) 12%,#1a1d27); }
+.gt-chip-icon { font-size:18px; margin-bottom:3px; }
+.gt-chip-label { font-size:10px; font-weight:700; color:#aaa; letter-spacing:0.4px; }
+.gt-chip.active .gt-chip-label { color:#fff; }
+.gt-tool { display:none; padding:14px 12px; }
+.gt-tool.active { display:block; }
+.gt-field { margin-bottom:10px; }
+.gt-field label { font-size:11px; color:#666; display:block; margin-bottom:4px; letter-spacing:0.3px; }
+.gt-field select, .gt-field input { width:100%; background:#1a1d27; border:1px solid #2e3147; border-radius:8px; color:#e0e0e0; padding:9px 10px; font-size:13px; outline:none; transition:border-color 0.15s; }
+.gt-field select:focus, .gt-field input:focus { border-color:#4ea8de; }
+.gt-row { display:flex; gap:8px; }
+.gt-row .gt-field { flex:1; }
+.gt-btn { width:100%; padding:10px; border:none; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; margin-top:2px; transition:opacity 0.15s; }
+.gt-btn:hover { opacity:0.85; }
+.gt-btn-blue   { background:#2563eb; color:#fff; }
+.gt-btn-purple { background:#7c3aed; color:#fff; }
+.gt-result { margin-top:14px; display:none; }
+.gt-result.visible { display:block; }
+.gt-insight { background:#131720; border-left:3px solid #4ea8de; border-radius:0 8px 8px 0; padding:10px 12px; font-size:13px; color:#cbd5e1; line-height:1.6; margin-bottom:12px; }
+.gt-insight.purple { border-left-color:#7c3aed; }
+.gt-stats { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-bottom:12px; }
+.gt-stat { background:#252836; border-radius:8px; padding:10px 6px; text-align:center; }
+.gt-stat-val { font-size:18px; font-weight:800; color:#fff; }
+.gt-stat-val.green { color:#22c55e; }
+.gt-stat-val.red   { color:#ef4444; }
+.gt-stat-key { font-size:9px; color:#555; text-transform:uppercase; letter-spacing:0.6px; margin-top:3px; }
+.gt-chart-wrap { background:#0d1117; border:1px solid #1e2535; border-radius:10px; padding:10px; }
+.gt-chart-label { font-size:10px; color:#555; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:6px; }
+.gt-avoid { font-size:12px; color:#f87171; margin-top:8px; padding:6px 10px; background:#2d0f0f; border-radius:6px; display:none; }
+.gt-avoid.visible { display:block; }
+/* urgency chips */
+.urg-chip { display:inline-block; font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; vertical-align:middle; margin-left:6px; }
+.urg-critical { background:#7f1d1d; color:#fca5a5; }
+.urg-high     { background:#7c2d12; color:#fdba74; }
+.urg-elevated { background:#713f12; color:#fcd34d; }
+.urg-moderate { background:#1e3a5f; color:#93c5fd; }
+.urg-safe     { background:#14532d; color:#86efac; }
+/* anomaly cards */
+.anom-card { background:#1a1d27; border:1px solid #2e3147; border-radius:10px; padding:10px 12px; margin-bottom:8px; }
+.anom-card.flagged { border-color:#7f1d1d; }
+.anom-name { font-size:13px; font-weight:700; color:#fff; margin-bottom:4px; }
+.anom-reason { font-size:12px; color:#f87171; }
+.anom-meta { font-size:11px; color:#444; margin-top:4px; }
+/* ── Anomaly alert banner ── */
+#anomaly-alert-bar { display:none; background:#1c0a0a; border-bottom:1px solid #450a0a; padding:8px 16px; align-items:center; gap:10px; font-size:13px; }
+#anomaly-alert-bar.visible { display:flex; }
+#anomaly-alert-count { font-weight:700; color:#fca5a5; }
+/* ── Bar charts (used in Overview) ── */
 .bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 12px; }
 .bar-label { width: 90px; color: #aaa; flex-shrink: 0; font-size: 11px; }
 .bar-track { flex: 1; background: #2e3147; border-radius: 4px; height: 12px; overflow: hidden; }
 .bar-fill { height: 100%; border-radius: 4px; transition: width 0.4s ease; }
 .bar-val { width: 38px; text-align: right; color: #ccc; font-size: 11px; flex-shrink: 0; }
-.future-card { background: #1a2535; border: 1px solid #2e4060; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
-.future-label { font-size: 13px; font-weight: 700; color: #60a5fa; margin-bottom: 6px; }
-.future-row { display: flex; justify-content: space-between; font-size: 12px; padding: 3px 0; border-bottom: 1px solid #1e3050; }
-.future-row:last-child { border-bottom: none; }
-.future-key { color: #888; }
-.future-val { font-weight: 600; color: #e0e0e0; }
-.future-val.warn { color: #f97316; }
-.future-val.danger { color: #ef4444; }
 </style>
 </head>
 <body>
@@ -293,6 +362,31 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
     </div>
 
     <button class="loc-skip" onclick="skipLocation()">Skip for now</button>
+  </div>
+</div>
+
+<!-- ── Role selection overlay ──────────────────────────────────────────── -->
+<div id="role-overlay">
+  <div class="role-box">
+    <div style="font-size:40px;margin-bottom:12px">⚡</div>
+    <h3>Who are you using FeederSight as?</h3>
+    <p>We'll tailor the map and tools to what matters most to you.</p>
+
+    <div class="role-option" onclick="selectRole('driver')">
+      <div class="role-icon">🚗</div>
+      <div>
+        <div class="role-label">EV Driver</div>
+        <div class="role-sub">Find chargers near me, check tonight's grid conditions, and plan my charge</div>
+      </div>
+    </div>
+
+    <div class="role-option utility" onclick="selectRole('utility')">
+      <div class="role-icon">🏭</div>
+      <div>
+        <div class="role-label">Grid Planner / Utilities Company</div>
+        <div class="role-sub">Analyse feeder capacity, risk forecasts, recommended build sites, and ML models</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -365,6 +459,25 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
   <button id="nav-dismiss" onclick="document.getElementById('nav-btn-wrap').classList.remove('visible')">✕</button>
 </div>
 
+<!-- Anomaly alert bar -->
+<div id="anomaly-alert-bar">
+  ⚠️ <span id="anomaly-alert-count">0</span> new anomalies detected
+  <span id="anomaly-alert-names" style="color:#fca5a5;flex:1;font-size:12px"></span>
+  <button onclick="showTab('grid');document.getElementById('anomaly-alert-bar').style.display='none'" style="background:#7f1d1d;border:none;border-radius:6px;color:#fca5a5;cursor:pointer;font-size:11px;padding:3px 10px">View →</button>
+  <button onclick="document.getElementById('anomaly-alert-bar').style.display='none'" style="background:none;border:none;color:#555;cursor:pointer;font-size:15px;padding:0 4px">✕</button>
+</div>
+
+<!-- Active simulation bar -->
+<div id="sim-active-bar">
+  <span id="sim-bar-icon" style="font-size:18px"></span>
+  <span id="sim-bar-name" style="font-weight:700;color:#fff"></span>
+  <div id="sim-bar-stats">
+    <span id="sim-bar-overloaded"></span>
+    <span id="sim-bar-stations"></span>
+  </div>
+  <button id="sim-bar-clear" onclick="clearSimulation()">✕ Clear simulation</button>
+</div>
+
 <!-- Weather alert -->
 <div id="weather-banner" {% if weather_alert %}class="visible"{% endif %}>
   ⚠️ <b>Weather Alert:</b> {{ weather_alert or "" }}
@@ -373,6 +486,22 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
 <!-- ── Main ─────────────────────────────────────────────────────────────── -->
 <div id="main">
   <div id="map" style="position:relative">
+    <!-- Floating simulate panel -->
+    <div id="sim-float-panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span style="font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:#888">Weather Scenario</span>
+        <button onclick="toggleSimPanel()" style="background:none;border:none;color:#555;cursor:pointer;font-size:16px;padding:0 2px">✕</button>
+      </div>
+      <div class="sim-grid">
+        <div class="sim-card" id="scard-winter_extreme" onclick="selectScenario('winter_extreme')"><div class="sim-icon">🥶</div><div class="sim-name">Winter Extreme</div><div class="sim-sub">−25°C blizzard</div></div>
+        <div class="sim-card" id="scard-cold_snap" onclick="selectScenario('cold_snap')"><div class="sim-icon">❄️</div><div class="sim-name">Cold Snap</div><div class="sim-sub">−15°C freeze</div></div>
+        <div class="sim-card" id="scard-ice_storm" onclick="selectScenario('ice_storm')"><div class="sim-icon">🌨️</div><div class="sim-name">Ice Storm</div><div class="sim-sub">−5°C freezing rain</div></div>
+        <div class="sim-card" id="scard-heat_wave" onclick="selectScenario('heat_wave')"><div class="sim-icon">🌡️</div><div class="sim-name">Heat Wave</div><div class="sim-sub">+38°C summer peak</div></div>
+        <div class="sim-card" id="scard-high_wind" onclick="selectScenario('high_wind')"><div class="sim-icon">💨</div><div class="sim-name">High Wind</div><div class="sim-sub">90 km/h gusts</div></div>
+        <div class="sim-card" id="scard-heavy_rain" onclick="selectScenario('heavy_rain')"><div class="sim-icon">🌧️</div><div class="sim-name">Heavy Rain</div><div class="sim-sub">50 mm/h flood risk</div></div>
+      </div>
+    </div>
+
     <!-- Gradient legend -->
     <div id="heatmap-legend">
       <div class="legend-title" id="legend-title">Grid stress intensity</div>
@@ -383,20 +512,23 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
     </div>
     <!-- Floating map layer toggles -->
     <div id="map-controls">
-      <button class="map-toggle-btn" id="btn-heatmap" onclick="toggleHeatmap()">
+      <button class="map-toggle-btn" data-role="utility" id="btn-heatmap" onclick="toggleHeatmap()">
         <span class="tog-dot"></span>🌡️ Heatmap
       </button>
       <button class="map-toggle-btn" id="btn-stations" onclick="mapToggle('stations','btn-stations')">
         <span class="tog-dot"></span>🔌 Charging stations
       </button>
-      <button class="map-toggle-btn on" id="btn-recommended" onclick="mapToggle('recommended','btn-recommended')">
-        <span class="tog-dot"></span>📍 Priority sites
-      </button>
-      <button class="map-toggle-btn on" id="btn-fsa" onclick="mapToggle('fsa','btn-fsa')">
+      <button class="map-toggle-btn on" data-role="utility" id="btn-fsa" onclick="mapToggle('fsa','btn-fsa')">
         <span class="tog-dot"></span>🔴 Grid risk areas
       </button>
-      <button class="map-toggle-btn on" id="btn-anomaly" onclick="mapToggle('anomaly','btn-anomaly')">
+      <button class="map-toggle-btn on" data-role="utility" id="btn-anomaly" onclick="mapToggle('anomaly','btn-anomaly')">
         <span class="tog-dot"></span>⚠️ Caution flags
+      </button>
+      <button class="map-toggle-btn" id="btn-live" onclick="toggleLive()">
+        <span class="tog-dot"></span>🔴 Live availability
+      </button>
+      <button class="map-toggle-btn" id="btn-simulate" onclick="toggleSimPanel()">
+        <span class="tog-dot"></span>⚡ Simulate
       </button>
     </div>
   </div>
@@ -406,9 +538,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
     <div id="panel-tabs">
       <div class="tab active" onclick="showTab('overview')">Overview</div>
       <div class="tab" onclick="showTab('nearby')">Near Me</div>
-      <div class="tab" onclick="showTab('winter')">Winter</div>
-      <div class="tab" onclick="showTab('simulate')">Simulate</div>
-      <div class="tab" onclick="showTab('ml')">ML</div>
+      <div class="tab" data-role="utility" onclick="showTab('grid')">Grid Tools</div>
       <div class="tab" onclick="showTab('reports')">Reports</div>
       <div class="tab" onclick="showTab('profile')">Profile</div>
     </div>
@@ -422,7 +552,30 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
           <div class="card-value" id="ov-temp">{{ weather.current_temp_c }}°C</div>
           <div class="card-sub" id="ov-event">{{ (weather.current_event or 'normal').replace('_',' ') }}</div>
         </div>
-        <div class="card">
+
+        <!-- Driver-only: Smart Charging Advisor -->
+        <div class="card" data-role="driver" id="driver-charge-card">
+          <div class="card-title">🔋 Smart Charging Advisor</div>
+          <div style="display:flex;align-items:center;gap:10px;margin:8px 0 12px">
+            <div style="flex:1;text-align:center;background:#0d1117;border-radius:8px;padding:10px 4px">
+              <div style="font-size:22px;font-weight:800" id="dca-load-pct">—</div>
+              <div style="font-size:9px;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px">Grid load now</div>
+            </div>
+            <div style="flex:1;text-align:center;background:#0d1117;border-radius:8px;padding:10px 4px">
+              <div style="font-size:13px;font-weight:700;color:#22c55e" id="dca-window">—</div>
+              <div style="font-size:9px;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px">Best window tonight</div>
+            </div>
+            <div style="flex:1;text-align:center;background:#0d1117;border-radius:8px;padding:10px 4px">
+              <div style="font-size:22px;font-weight:800;color:#f59e0b" id="dca-range-impact">—</div>
+              <div style="font-size:9px;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px">Range impact</div>
+            </div>
+          </div>
+          <div style="font-size:12px;color:#94a3b8;background:#131720;border-left:3px solid #22c55e;border-radius:0 6px 6px 0;padding:8px 10px;line-height:1.5" id="dca-tip"></div>
+          <button class="btn btn-primary" style="margin-top:10px;font-size:12px;padding:8px" onclick="showTab('nearby');locateMe()">📍 Find chargers near me →</button>
+        </div>
+
+        <!-- Utility-only cards -->
+        <div class="card" data-role="utility">
           <div class="card-title">Forecast urgency (35% growth)</div>
           <div class="urgency-row"><span class="urg-dot" style="background:#d7191c"></span><span class="urg-label">Overloaded now</span><span class="urg-count" id="u0">{{ overloaded_now }}</span></div>
           <div class="urgency-row"><span class="urg-dot" style="background:#f4730a"></span><span class="urg-label">1–2 years</span><span class="urg-count" id="u1">{{ at_risk_soon }}</span></div>
@@ -430,7 +583,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
           <div class="urgency-row"><span class="urg-dot" style="background:#92c5de"></span><span class="urg-label">6–10 years</span><span class="urg-count" id="u3">—</span></div>
           <div class="urgency-row"><span class="urg-dot" style="background:#2ca02c"></span><span class="urg-label">Safe 10+ years</span><span class="urg-count" id="u4">—</span></div>
         </div>
-        <div class="card">
+        <div class="card" data-role="utility">
           <div class="card-title">Station status</div>
           <div class="urgency-row"><span class="urg-dot dot-green"></span><span class="urg-label">Operational</span><span class="urg-count" id="s0">—</span></div>
           <div class="urgency-row"><span class="urg-dot" style="background:#fecc02"></span><span class="urg-label">Degraded</span><span class="urg-count" id="s1">—</span></div>
@@ -508,149 +661,180 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
         <div id="machine-detail-content"></div>
       </div>
 
-      <!-- WINTER HISTORY -->
-      <div class="panel-view" id="view-winter">
-        <div id="winter-loading" style="color:#888;font-size:13px;padding:8px 0">Loading winter data...</div>
-        <div id="winter-content" style="display:none">
+      <!-- GRID TOOLS -->
+      <div class="panel-view" id="view-grid">
 
-          <!-- Past winters -->
-          <div class="card" style="margin-bottom:0;border-bottom:none;border-radius:8px 8px 0 0">
-            <div class="card-title">Worst on record — coldest day per winter</div>
-            <div id="winter-history-rows"></div>
+        <!-- Tool picker chips -->
+        <div class="gt-picker">
+          <div class="gt-chip active" style="--chip-color:#2563eb" id="chip-dr" onclick="switchGridTool('dr')">
+            <div class="gt-chip-icon">⚡</div>
+            <div class="gt-chip-label">DR OPT</div>
           </div>
-
-          <!-- Season comparison bar chart -->
-          <div class="card" style="border-radius:0;border-top:none;border-bottom:none;padding-top:8px">
-            <div class="card-title">Grid stress at cold peak (mean risk ratio)</div>
-            <div id="winter-bars"></div>
+          <div class="gt-chip" style="--chip-color:#7c3aed" id="chip-fc" onclick="switchGridTool('fc')">
+            <div class="gt-chip-icon">📈</div>
+            <div class="gt-chip-label">FORECAST</div>
           </div>
-
-          <!-- Divider -->
-          <div class="card" style="border-radius:0 0 8px 8px;border-top:none;padding-top:6px;margin-bottom:12px">
-            <div class="card-title">FSAs overloaded at peak cold</div>
-            <div id="winter-overload-bars"></div>
+          <div class="gt-chip" style="--chip-color:#ef4444" id="chip-an" onclick="switchGridTool('an')">
+            <div class="gt-chip-icon">🔍</div>
+            <div class="gt-chip-label">ANOMALIES</div>
           </div>
-
-          <!-- Future projections -->
-          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:#666;margin-bottom:6px;padding:0 2px">Future winters — moderate 35% EV growth</div>
-          <div id="winter-future"></div>
-
-          <div style="font-size:11px;color:#555;margin-top:10px;padding:0 2px;line-height:1.5">
-            Weather: Open-Meteo Archive (Toronto, Dec–Feb). Grid stress uses current FSA loads × weather factor for battery efficiency + heating demand.
+          <div class="gt-chip" style="--chip-color:#f59e0b" id="chip-rs" onclick="switchGridTool('rs')">
+            <div class="gt-chip-icon">🗺️</div>
+            <div class="gt-chip-label">RISK SCAN</div>
           </div>
-        </div>
-      </div>
-
-      <!-- SIMULATE -->
-      <div class="panel-view" id="view-simulate">
-
-        <!-- Scenario picker -->
-        <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:#666;margin-bottom:8px">Choose a weather scenario</div>
-        <div class="sim-grid" id="sim-scenario-grid">
-          <div class="sim-card" id="scard-winter_extreme" onclick="selectScenario('winter_extreme')">
-            <div class="sim-icon">🥶</div>
-            <div class="sim-name">Winter Extreme</div>
-            <div class="sim-sub">−25°C blizzard</div>
-          </div>
-          <div class="sim-card" id="scard-cold_snap" onclick="selectScenario('cold_snap')">
-            <div class="sim-icon">❄️</div>
-            <div class="sim-name">Cold Snap</div>
-            <div class="sim-sub">−15°C freeze</div>
-          </div>
-          <div class="sim-card" id="scard-ice_storm" onclick="selectScenario('ice_storm')">
-            <div class="sim-icon">🌨️</div>
-            <div class="sim-name">Ice Storm</div>
-            <div class="sim-sub">−5°C freezing rain</div>
-          </div>
-          <div class="sim-card" id="scard-heat_wave" onclick="selectScenario('heat_wave')">
-            <div class="sim-icon">🌡️</div>
-            <div class="sim-name">Heat Wave</div>
-            <div class="sim-sub">+38°C summer peak</div>
-          </div>
-          <div class="sim-card" id="scard-high_wind" onclick="selectScenario('high_wind')">
-            <div class="sim-icon">💨</div>
-            <div class="sim-name">High Wind</div>
-            <div class="sim-sub">90 km/h gusts</div>
-          </div>
-          <div class="sim-card" id="scard-heavy_rain" onclick="selectScenario('heavy_rain')">
-            <div class="sim-icon">🌧️</div>
-            <div class="sim-name">Heavy Rain</div>
-            <div class="sim-sub">50 mm/h flood risk</div>
+          <div class="gt-chip" style="--chip-color:#06b6d4" id="chip-st" onclick="switchGridTool('st')">
+            <div class="gt-chip-icon">⚠️</div>
+            <div class="gt-chip-label">STRESS</div>
           </div>
         </div>
 
-        <!-- Results (hidden until scenario selected) -->
-        <div id="sim-results" style="display:none;margin-top:12px">
-
-          <!-- Active scenario banner -->
-          <div id="sim-active-banner" style="display:flex;align-items:center;gap:8px;background:#1a2535;border:1px solid #2e4060;border-radius:8px;padding:10px 12px;margin-bottom:10px">
-            <span id="sim-banner-icon" style="font-size:22px"></span>
-            <div style="flex:1">
-              <div id="sim-banner-label" style="font-weight:700;font-size:14px;color:#fff"></div>
-              <div id="sim-banner-desc" style="font-size:11px;color:#888;margin-top:1px"></div>
+        <!-- ① Demand Response -->
+        <div class="gt-tool active" id="gt-dr">
+          <div class="gt-row">
+            <div class="gt-field">
+              <label>Area (FSA)</label>
+              <select id="dr-fsa"><option value="">— Select area —</option></select>
             </div>
-            <button onclick="clearSimulation()" style="background:none;border:1px solid #3e4460;border-radius:6px;color:#888;cursor:pointer;font-size:11px;padding:3px 8px">Clear</button>
-          </div>
-
-          <!-- Grid impact -->
-          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:#666;margin-bottom:6px">Grid impact</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
-            <div class="sim-stat-box">
-              <div class="sim-stat-val" id="sim-overloaded">—</div>
-              <div class="sim-stat-key">FSAs overloaded</div>
-            </div>
-            <div class="sim-stat-box">
-              <div class="sim-stat-val" id="sim-delta" style="color:#f97316">—</div>
-              <div class="sim-stat-key">vs current</div>
-            </div>
-            <div class="sim-stat-box">
-              <div class="sim-stat-val" id="sim-risk-ratio">—</div>
-              <div class="sim-stat-key">mean risk ratio</div>
-            </div>
-            <div class="sim-stat-box">
-              <div class="sim-stat-val" id="sim-wfactor">—</div>
-              <div class="sim-stat-key">weather factor</div>
+            <div class="gt-field">
+              <label>Mode</label>
+              <select id="dr-mode">
+                <option value="driver">Single driver</option>
+                <option value="fleet" selected>Fleet (20–500 EVs)</option>
+                <option value="neighbourhood">Neighbourhood</option>
+              </select>
             </div>
           </div>
-
-          <!-- Station impact -->
-          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:#666;margin-bottom:6px">Station impact</div>
-          <div style="margin-bottom:12px">
-            <div class="bar-row"><div class="bar-label" style="color:#22c55e">Operational</div><div class="bar-track"><div class="bar-fill" id="sim-bar-op" style="background:#22c55e;width:0%"></div></div><div class="bar-val" id="sim-cnt-op">—</div></div>
-            <div class="bar-row"><div class="bar-label" style="color:#facc15">Degraded</div><div class="bar-track"><div class="bar-fill" id="sim-bar-dg" style="background:#facc15;width:0%"></div></div><div class="bar-val" id="sim-cnt-dg">—</div></div>
-            <div class="bar-row"><div class="bar-label" style="color:#f97316">High Risk</div><div class="bar-track"><div class="bar-fill" id="sim-bar-hr" style="background:#f97316;width:0%"></div></div><div class="bar-val" id="sim-cnt-hr">—</div></div>
-            <div class="bar-row"><div class="bar-label" style="color:#9ca3af">Offline</div><div class="bar-track"><div class="bar-fill" id="sim-bar-of" style="background:#9ca3af;width:0%"></div></div><div class="bar-val" id="sim-cnt-of">—</div></div>
+          <div class="gt-row">
+            <div class="gt-field">
+              <label>Number of EVs</label>
+              <input type="number" id="dr-evs" value="50" min="1" max="500"/>
+            </div>
+            <div class="gt-field">
+              <label>Energy needed (kWh)</label>
+              <input type="number" id="dr-energy" value="30" min="5" max="100"/>
+            </div>
           </div>
+          <button class="gt-btn gt-btn-blue" onclick="runDemandResponse()">Optimise Charging Schedule →</button>
 
-          <!-- Problems & outcomes -->
-          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:#666;margin-bottom:6px">Problems &amp; outcomes</div>
-          <div id="sim-problems"></div>
+          <div class="gt-result" id="dr-result">
+            <div class="gt-insight" id="dr-summary"></div>
+            <div class="gt-stats">
+              <div class="gt-stat">
+                <div class="gt-stat-val" id="dr-peak-managed">—</div>
+                <div class="gt-stat-key">Managed peak (kW)</div>
+              </div>
+              <div class="gt-stat">
+                <div class="gt-stat-val" id="dr-peak-unmanaged">—</div>
+                <div class="gt-stat-key">Unmanaged peak (kW)</div>
+              </div>
+              <div class="gt-stat">
+                <div class="gt-stat-val green" id="dr-reduction">—</div>
+                <div class="gt-stat-key">Peak reduction</div>
+              </div>
+            </div>
+            <div class="gt-chart-wrap">
+              <div class="gt-chart-label">24-hour load curve</div>
+              <canvas id="dr-chart" height="120"></canvas>
+            </div>
+            <div class="gt-avoid" id="dr-avoid"></div>
+          </div>
         </div>
 
-        <div style="font-size:11px;color:#555;margin-top:12px;line-height:1.5">
-          Simulation recalculates every FSA and station using the scenario's weather factor. Map overlay shows simulated risk — toggle off with Clear.
-        </div>
-      </div>
+        <!-- ② Feeder Forecast -->
+        <div class="gt-tool" id="gt-fc">
+          <div class="gt-field">
+            <label>Area (FSA)</label>
+            <select id="fc-fsa"><option value="">— Select area —</option></select>
+          </div>
+          <button class="gt-btn gt-btn-purple" onclick="runForecast()">Generate Forecast →</button>
 
-      <!-- ML MODELS -->
-      <div class="panel-view" id="view-ml">
-        <div class="card">
-          <div class="card-title">Model 1 — Outage Probability <span class="ml-badge ml-lr">Logistic Regression</span></div>
-          <div class="card-sub" style="margin-top:6px;line-height:1.5">P(outage in 24h) per FSA. Inputs: risk ratio, grid load, feeder capacity, EV count, charger count, weather severity.</div>
+          <div class="gt-result" id="fc-result">
+            <div class="gt-insight purple" id="fc-summary"></div>
+            <div class="gt-stats" style="grid-template-columns:1fr 1fr">
+              <div class="gt-stat">
+                <div class="gt-stat-val red" id="fc-overload-date" style="font-size:13px">—</div>
+                <div class="gt-stat-key">Overload date</div>
+              </div>
+              <div class="gt-stat">
+                <div class="gt-stat-val" id="fc-current-ratio">—</div>
+                <div class="gt-stat-key">Current load ratio</div>
+              </div>
+            </div>
+            <div class="gt-chart-wrap">
+              <div class="gt-chart-label">36-month projection</div>
+              <canvas id="fc-chart" height="120"></canvas>
+            </div>
+          </div>
         </div>
-        <div class="card">
-          <div class="card-title">Model 2 — Rate Limit Optimizer <span class="ml-badge ml-gb">Gradient Boosting</span></div>
-          <div class="card-sub" style="margin-top:6px;line-height:1.5">Recommends max safe kW per FSA to keep grid load below feeder capacity under current weather.</div>
+
+        <!-- ③ Live Anomalies -->
+        <div class="gt-tool" id="gt-an">
+          <div style="font-size:11px;color:#555;margin-bottom:10px;letter-spacing:0.3px">
+            Stations flagged by continuous ML monitoring · refreshes every 5 min
+          </div>
+          <div id="anomaly-live-list">
+            <div style="color:#666;font-size:13px;padding:6px 0">Loading...</div>
+          </div>
+          <div style="font-size:10px;color:#444;margin-top:8px" id="anomaly-last-check"></div>
         </div>
-        <div class="card">
-          <div class="card-title">Model 3 — Anomaly Detector <span class="ml-badge ml-if">Isolation Forest</span></div>
-          <div class="card-sub" style="margin-top:6px;line-height:1.5">Flags statistically unusual stations — abnormal machine counts, power ratings, or repeated reports. 5% contamination rate.</div>
+
+        <!-- ④ Risk Scan -->
+        <div class="gt-tool" id="gt-rs">
+          <div style="font-size:11px;color:#555;margin-bottom:10px;letter-spacing:0.3px">
+            All areas ranked by overload risk · based on current EV growth projections
+          </div>
+          <div class="gt-field">
+            <label>Filter by urgency</label>
+            <select id="rs-filter" onchange="renderRiskScan()">
+              <option value="all">All areas</option>
+              <option value="Critical">Critical only</option>
+              <option value="High">High &amp; above</option>
+              <option value="Elevated">Elevated &amp; above</option>
+              <option value="Moderate">Moderate &amp; above</option>
+            </select>
+          </div>
+          <div id="rs-list"></div>
         </div>
-        <div class="card">
-          <div class="card-title">Key risk drivers</div>
-          <div id="imp-list"></div>
+
+        <!-- ⑤ Stress Test -->
+        <div class="gt-tool" id="gt-st">
+          <div style="font-size:11px;color:#555;margin-bottom:10px;letter-spacing:0.3px">
+            Add EVs to any area and instantly see feeder headroom
+          </div>
+          <div class="gt-field">
+            <label>Area (FSA)</label>
+            <select id="st-fsa" onchange="runStressTest()">
+              <option value="">— Select area —</option>
+            </select>
+          </div>
+          <div class="gt-field">
+            <label>Extra EVs to add: <span id="st-ev-val">50</span></label>
+            <input type="range" class="range-slider" id="st-evs" min="1" max="500" value="50"
+                   oninput="document.getElementById('st-ev-val').textContent=this.value; runStressTest()"/>
+          </div>
+          <div class="gt-result visible" id="st-result" style="display:none">
+            <div class="gt-insight" id="st-insight"></div>
+            <div class="gt-stats">
+              <div class="gt-stat">
+                <div class="gt-stat-val" id="st-current-load">—</div>
+                <div class="gt-stat-key">Current load (kW)</div>
+              </div>
+              <div class="gt-stat">
+                <div class="gt-stat-val" id="st-extra-load">—</div>
+                <div class="gt-stat-key">Added EV load (kW)</div>
+              </div>
+              <div class="gt-stat">
+                <div class="gt-stat-val" id="st-headroom">—</div>
+                <div class="gt-stat-key">Headroom left</div>
+              </div>
+            </div>
+            <div class="gt-avoid" id="st-warn"></div>
+          </div>
         </div>
-      </div>
+
+      </div><!-- end view-grid -->
+
+      <!-- views for station/machine detail remain, winter/simulate/ml removed -->
 
       <!-- REPORTS -->
       <div class="panel-view" id="view-reports">
@@ -725,7 +909,8 @@ let _currentUser = null;
 let _userLat = null, _userLon = null;
 let _radius = 10;
 let _currentStation = null;
-let _navTarget = null;  // latest navigation target from AI
+let _navTarget = null;
+let _userRole = sessionStorage.getItem('feedersight_role') || null; // 'driver' | 'utility'
 
 // ── Guest session vehicle (sessionStorage — lives while tab is open) ──────
 function loadGuestSession() {
@@ -764,9 +949,8 @@ function getActiveProfile() {
 const map = L.map('map', {center:[43.75,-79.45], zoom:9});
 L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/">CARTO</a>',maxZoom:19}).addTo(map);
 
-const layers = {fsa:L.layerGroup(), stations:L.layerGroup(), recommended:L.layerGroup(), anomaly:L.layerGroup(), sim:L.layerGroup()};
+const layers = {fsa:L.layerGroup(), stations:L.layerGroup(), recommended:L.layerGroup(), anomaly:L.layerGroup(), sim:L.layerGroup(), live:L.layerGroup()};
 layers.fsa.addTo(map);
-layers.recommended.addTo(map);
 layers.anomaly.addTo(map);
 
 // ── Heatmap layer ─────────────────────────────────────────────────────────
@@ -951,18 +1135,23 @@ STATIONS.forEach(s => {
   const el=document.getElementById(`s${i}`); if(el) el.textContent=statusCounts[k]||0;
 });
 
-// Recommended
-RECOMMENDED.forEach((r,i)=>{
-  if(!r.latitude||!r.longitude) return;
-  const icon=L.divIcon({html:`<div style="background:#5d3fd3;color:#fff;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.5)">${i+1}</div>`,className:'',iconSize:[26,26],iconAnchor:[13,13]});
-  L.marker([r.latitude,r.longitude],{icon}).bindTooltip(`#${i+1} ${r.fsa}`).addTo(layers.recommended);
-});
 
-// Anomalies
+// Anomalies — large pulsing caution pins
 STATIONS.forEach(s=>{
   if(!s.is_anomaly||!s.latitude||!s.longitude) return;
-  const icon=L.divIcon({html:'<div style="font-size:16px">⚠️</div>',className:'',iconSize:[20,20],iconAnchor:[10,10]});
-  L.marker([s.latitude,s.longitude],{icon}).bindTooltip(`Anomaly: ${s.name||""}  — ${s.anomaly_reason||"outlier"}`).addTo(layers.anomaly);
+  const icon=L.divIcon({
+    html:`<div class="caution-pin"><div class="caution-pin-ring"></div><div class="caution-pin-inner">⚠️</div></div>`,
+    className:'',iconSize:[30,30],iconAnchor:[15,15]
+  });
+  L.marker([s.latitude,s.longitude],{icon})
+    .bindTooltip(`<b>Caution: ${s.name||'Station'}</b><br>${s.anomaly_reason||'Statistical outlier'}`,{permanent:false})
+    .bindPopup(`<div style="font-family:-apple-system,sans-serif;font-size:13px;min-width:210px">
+      <div style="font-size:11px;color:#ef4444;font-weight:700;margin-bottom:4px">⚠️ CAUTION FLAG</div>
+      <b style="font-size:14px">${s.name||'Station'}</b>
+      <div style="font-size:12px;color:#ef4444;margin-top:6px">${s.anomaly_reason||'Statistical outlier detected by Isolation Forest'}</div>
+      <div style="font-size:11px;color:#6b7280;margin-top:4px">Flagged by ML anomaly detector. Verify condition before relying on this station.</div>
+    </div>`,{maxWidth:260})
+    .addTo(layers.anomaly);
 });
 
 // Weather pill
@@ -970,10 +1159,6 @@ const wEvt = (WEATHER.current_event||'normal').replace(/_/g,' ');
 document.getElementById('weather-label').textContent = `${WEATHER.current_temp_c}°C — ${wEvt}`;
 if (WEATHER.alert_active) { document.getElementById('weather-dot').style.background='#f4730a'; }
 
-// ML importances
-const imps=[["EV count",38.1],["Base grid load",29.1],["Feeder capacity",17.5],["Avg charger power",9.6],["Premise count",4.0]];
-const impList=document.getElementById('imp-list');
-imps.forEach(([n,v])=>{ impList.innerHTML+=`<div style="margin-bottom:7px"><div style="display:flex;justify-content:space-between;font-size:12px"><span style="color:#ccc">${n}</span><span style="color:#fff">${v}%</span></div><div style="background:#2e3147;border-radius:3px;height:5px;margin-top:3px"><div style="width:${v*2.5}%;background:#4ea8de;height:5px;border-radius:3px"></div></div></div>`; });
 
 // ── Station drill-down ────────────────────────────────────────────────────
 async function showStationPanel(station) {
@@ -1274,19 +1459,20 @@ function onLoggedIn() {
   document.getElementById('profile-sub').textContent = _currentUser.car_model || 'No car set';
   document.getElementById('profile-logged-in').style.display='block';
   document.getElementById('profile-logged-out').style.display='none';
-  document.getElementById('guest-vehicle-card').style.display='none'; // hide guest card when logged in
+  document.getElementById('guest-vehicle-card').style.display='none';
   if (_currentUser.car_model) {
     document.getElementById('profile-car').value = _currentUser.car_model;
     document.getElementById('battery-section').style.display='block';
   }
   if (_currentUser.charge_target) document.getElementById('profile-target').value = _currentUser.charge_target;
+  if (!_userRole) { document.getElementById('role-overlay').classList.add('visible'); return; }
+  setTimeout(showLocationPrompt, 400);
 }
 
 function continueAsGuest() {
   _currentUser = null;
   document.getElementById('auth-overlay').style.display='none';
   document.getElementById('guest-vehicle-card').style.display='block';
-  // Restore previous guest session if exists
   const saved = loadGuestSession();
   if (saved) {
     if (saved.car_model) document.getElementById('guest-car-select').value = saved.car_model;
@@ -1294,6 +1480,87 @@ function continueAsGuest() {
     if (saved.charge_target) document.getElementById('guest-target').value = saved.charge_target;
     updateGuestRange();
   }
+  if (!_userRole) { document.getElementById('role-overlay').classList.add('visible'); return; }
+  setTimeout(showLocationPrompt, 400);
+}
+
+// Ontario hourly load shape (mirrors Python demand_response.py)
+const ONTARIO_LOAD_SHAPE = [
+  0.72,0.68,0.65,0.63,0.62,0.64,
+  0.72,0.83,0.92,0.96,0.99,1.00,
+  0.98,0.97,0.96,0.95,0.96,1.00,
+  1.02,1.05,1.03,0.97,0.90,0.80,
+];
+const HOUR_LABELS_SHORT = [
+  '12am','1am','2am','3am','4am','5am','6am','7am','8am','9am','10am','11am',
+  '12pm','1pm','2pm','3pm','4pm','5pm','6pm','7pm','8pm','9pm','10pm','11pm',
+];
+
+function _buildDriverCard() {
+  const h   = new Date().getHours();
+  const cur = ONTARIO_LOAD_SHAPE[h];
+  const loadLabel = cur >= 1.0 ? 'PEAK' : cur >= 0.90 ? 'HIGH' : cur >= 0.78 ? 'MODERATE' : 'LOW';
+  const loadColor = cur >= 1.0 ? '#ef4444' : cur >= 0.90 ? '#f97316' : cur >= 0.78 ? '#f59e0b' : '#22c55e';
+
+  // Best consecutive 4-hour off-peak window in next 12 hours
+  let bestStart = (h + 1) % 24, bestAvg = 99;
+  for (let s = h + 1; s < h + 12; s++) {
+    const avg = (ONTARIO_LOAD_SHAPE[s%24] + ONTARIO_LOAD_SHAPE[(s+1)%24] +
+                 ONTARIO_LOAD_SHAPE[(s+2)%24] + ONTARIO_LOAD_SHAPE[(s+3)%24]) / 4;
+    if (avg < bestAvg) { bestAvg = avg; bestStart = s % 24; }
+  }
+  const bestLabel = HOUR_LABELS_SHORT[bestStart] + '–' + HOUR_LABELS_SHORT[(bestStart+4)%24];
+
+  // Weather range impact
+  const temp = WEATHER.current_temp_c ?? 10;
+  const rangeImpact = temp < -10 ? '-40%' : temp < 0 ? '-20%' : temp < 8 ? '-10%' : '0%';
+  const rangeColor  = temp < -10 ? '#ef4444' : temp < 0 ? '#f97316' : temp < 8 ? '#f59e0b' : '#22c55e';
+
+  const tip = cur >= 1.0
+    ? `Grid is at peak load right now. Delay charging if possible — best window is ${bestLabel}.`
+    : cur >= 0.90
+    ? `Grid is running high. If you can wait, ${bestLabel} will be easier on the grid and may cost less.`
+    : `Good time to charge. Off-peak window ${bestLabel} is even cheaper if you're not urgent.`;
+
+  const pctEl = document.getElementById('dca-load-pct');
+  pctEl.textContent = Math.round(cur * 100) + '%';
+  pctEl.style.color = loadColor;
+  document.getElementById('dca-window').textContent = bestLabel;
+  const rEl = document.getElementById('dca-range-impact');
+  rEl.textContent = rangeImpact;
+  rEl.style.color = rangeColor;
+  document.getElementById('dca-tip').textContent = tip;
+}
+
+function applyRole(role) {
+  // Show/hide elements tagged with data-role
+  document.querySelectorAll('[data-role]').forEach(el => {
+    const r = el.getAttribute('data-role');
+    el.style.display = (r === role || r === 'both') ? '' : 'none';
+  });
+
+  if (role === 'utility') {
+    if (!map.hasLayer(layers.fsa))     layers.fsa.addTo(map);
+    if (!map.hasLayer(layers.anomaly)) layers.anomaly.addTo(map);
+    if (map.hasLayer(layers.stations)) map.removeLayer(layers.stations);
+    document.getElementById('topbar').style.borderBottomColor = '#a78bfa';
+  } else {
+    if (!map.hasLayer(layers.stations)) layers.stations.addTo(map);
+    if (map.hasLayer(layers.fsa))     map.removeLayer(layers.fsa);
+    if (map.hasLayer(layers.anomaly)) map.removeLayer(layers.anomaly);
+    document.getElementById('topbar').style.borderBottomColor = '#4ea8de';
+    _buildDriverCard();
+  }
+  syncToggleStates();
+}
+
+function selectRole(role) {
+  _userRole = role;
+  sessionStorage.setItem('feedersight_role', role);
+  document.getElementById('role-overlay').classList.remove('visible');
+  applyRole(role);
+  showTab(role === 'utility' ? 'overview' : 'nearby');
+  setTimeout(showLocationPrompt, 400);
 }
 
 async function doLogout() {
@@ -1413,26 +1680,496 @@ function skipLocation() {
   sessionStorage.setItem('location_prompted', '1');
 }
 
-// Show location prompt after auth is done (slight delay for smooth UX)
-window.addEventListener('load', () => setTimeout(showLocationPrompt, 800));
+// On load: sync toggles, start anomaly stream, show location prompt
+window.addEventListener('load', () => {
+  syncToggleStates();
+  startAnomalyStream();
+  setInterval(refreshAnomalyList, 300000); // re-poll every 5 min
+  if (_userRole) { applyRole(_userRole); setTimeout(showLocationPrompt, 800); }
+});
+
+// ── Live availability layer ───────────────────────────────────────────────
+let _liveOn = false;
+let _liveLoading = false;
+const LIVE_STATUS_COLOR = {
+  'Available':   '#16a34a',
+  'In Use':      '#d97706',
+  'Partial':     '#0284c7',
+  'Unavailable': '#6b7280',
+  'Unknown':     '#374151',
+};
+const CONNECTOR_SHORT = {
+  'J1772':           'J1772',
+  'CHAdeMO':         'CHAdeMO',
+  'CCS (Type 1)':    'CCS1',
+  'CCS (Type 2)':    'CCS2',
+  'Type 2 (Socket Only)': 'Type2',
+  'Tesla':           'Tesla',
+  'NEMA 14-50':      'NEMA',
+};
+function _shortConnector(type) {
+  for (const [k, v] of Object.entries(CONNECTOR_SHORT)) {
+    if (type.includes(k.split(' ')[0])) return v;
+  }
+  return type.split(' ')[0];
+}
+
+async function toggleLive() {
+  const btn = document.getElementById('btn-live');
+  if (_liveOn) {
+    map.removeLayer(layers.live);
+    layers.live.clearLayers();
+    btn.classList.remove('on');
+    _liveOn = false;
+    return;
+  }
+  if (_liveLoading) return;
+  _liveLoading = true;
+  btn.textContent = '⏳ Loading live data…';
+  btn.style.opacity = '0.6';
+
+  try {
+    const lat  = _userLat  || 43.75;
+    const lon  = _userLon  || -79.45;
+    const res  = await fetch(`/api/live-stations?lat=${lat}&lon=${lon}&radius=60`);
+    const data = await res.json();
+
+    if (data.error === 'OCM_API_KEY_REQUIRED') {
+      btn.innerHTML = '<span class="tog-dot"></span>🔴 Live availability';
+      btn.style.opacity = '1';
+      _liveLoading = false;
+      alert('A free API key is needed for live data.\n\n1. Go to openchargemap.org/site/profile\n2. Register (free)\n3. Copy your API key\n4. Add this line to your .env file:\n   OCM_API_KEY=your_key_here\n5. Restart the server');
+      return;
+    }
+    if (data.error) throw new Error(data.error);
+
+    layers.live.clearLayers();
+    const ts = data.fetched_at ? new Date(data.fetched_at * 1000).toLocaleTimeString() : '—';
+
+    data.stations.forEach(s => {
+      if (!s.lat || !s.lon) return;
+      const status   = s.status || 'Unknown';
+      const isDCFast = (s.max_kw || 0) > 22;
+      const color    = LIVE_STATUS_COLOR[status] || '#374151';
+      const badgeCls = {
+        'Available':   'live-available',
+        'In Use':      'live-inuse',
+        'Unavailable': 'live-unavailable',
+        'Partial':     'live-partial',
+      }[status] || 'live-unknown';
+
+      const connStr = (s.connector_types || []).slice(0,3).map(_shortConnector).join(' · ') || '—';
+      const kwStr   = s.max_kw ? `${s.max_kw} kW` : '—';
+      const pts     = s.num_points || 1;
+
+      let iconHtml;
+      if (isDCFast) {
+        // DC Fast — large bold marker with kW label
+        iconHtml = `<div style="position:relative">
+          <div style="background:${color};color:#fff;border-radius:8px;border:2.5px solid #fff;box-shadow:0 3px 10px rgba(0,0,0,0.6);padding:4px 8px;font-size:12px;font-weight:800;white-space:nowrap;display:flex;align-items:center;gap:4px">
+            ⚡ ${s.max_kw}kW
+          </div>
+          <div style="position:absolute;bottom:-5px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid ${color}"></div>
+        </div>`;
+      } else {
+        // Level 2 — small dot
+        iconHtml = `<div class="live-pin"><div class="live-pin-inner" style="background:${color};width:14px;height:14px;border-radius:50%;padding:0"></div></div>`;
+      }
+
+      const icon = L.divIcon({
+        html: iconHtml,
+        className: '',
+        iconSize:   isDCFast ? [80, 32] : [18, 18],
+        iconAnchor: isDCFast ? [40, 32] : [9, 9],
+      });
+
+      L.marker([s.lat, s.lon], {icon, zIndexOffset: 200})
+        .bindTooltip(`<b>${s.name||'Charger'}</b><br>${status} · ${connStr}`, {sticky: true})
+        .bindPopup(`<div style="font-family:-apple-system,sans-serif;font-size:13px;min-width:230px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <span class="live-badge ${badgeCls}">${status}</span>
+            <b style="font-size:14px;flex:1">${s.name||'Charging Station'}</b>
+          </div>
+          <div style="background:#f9fafb;border-radius:6px;padding:8px;font-size:12px;color:#374151">
+            <div style="margin-bottom:3px">🔌 <b>${pts} point${pts!==1?'s':''}</b> · ${kwStr} max</div>
+            <div style="margin-bottom:3px">🔗 ${connStr}</div>
+            <div style="margin-bottom:3px">🏷️ ${s.network}</div>
+            <div style="margin-bottom:3px">📍 ${s.address||''} ${s.city||''}</div>
+            <div style="margin-bottom:3px">💰 ${s.usage_cost||'—'}</div>
+            <div style="color:#9ca3af;font-size:11px">Last verified: ${s.last_verified||'—'}</div>
+          </div>
+          <div style="font-size:10px;color:#9ca3af;margin-top:6px">Source: Open Charge Map · as of ${ts}</div>
+        </div>`, {maxWidth: 280})
+        .addTo(layers.live);
+    });
+
+    layers.live.addTo(map);
+    _liveOn = true;
+    btn.innerHTML = '<span class="tog-dot" style="background:#4ea8de"></span>🔴 Live availability';
+    btn.classList.add('on');
+    btn.style.opacity = '1';
+  } catch(e) {
+    btn.innerHTML = '<span class="tog-dot"></span>🔴 Live availability';
+    btn.style.opacity = '1';
+    alert('Could not load live data: ' + e.message + '\n\nAdd OCM_API_KEY to .env for higher rate limits.');
+  }
+  _liveLoading = false;
+}
 
 // ── Map floating layer toggles ────────────────────────────────────────────
 function mapToggle(layerName, btnId) {
   const btn = document.getElementById(btnId);
+  if (!btn) return;
   const isOn = btn.classList.contains('on');
-  if (isOn) { map.removeLayer(layers[layerName]); btn.classList.remove('on'); }
-  else { layers[layerName].addTo(map); btn.classList.add('on'); }
+  if (isOn) {
+    if (map.hasLayer(layers[layerName])) map.removeLayer(layers[layerName]);
+    btn.classList.remove('on');
+  } else {
+    if (!map.hasLayer(layers[layerName])) layers[layerName].addTo(map);
+    btn.classList.add('on');
+  }
+}
+
+// Ensure toggle button states match actual map layer state on load
+function syncToggleStates() {
+  [['fsa','btn-fsa'],['anomaly','btn-anomaly'],['stations','btn-stations']].forEach(([lyr,btnId])=>{
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    if (map.hasLayer(layers[lyr])) btn.classList.add('on');
+    else btn.classList.remove('on');
+  });
+}
+
+// ── Populate FSA dropdowns ────────────────────────────────────────────────
+(function() {
+  const opts = AREAS.map(a => {
+    const label = (a.area && a.area !== a.fsa) ? `${a.area} (${a.fsa})` : a.fsa;
+    return `<option value="${a.fsa}">${label}</option>`;
+  }).join('');
+  document.getElementById('dr-fsa').innerHTML += opts;
+  document.getElementById('fc-fsa').innerHTML += opts;
+})();
+
+// ── Grid Tools chip switcher ───────────────────────────────────────────────
+function switchGridTool(name) {
+  ['dr','fc','an','rs','st'].forEach(t => {
+    document.getElementById('gt-' + t).classList.toggle('active', t === name);
+    document.getElementById('chip-' + t).classList.toggle('active', t === name);
+  });
+  if (name === 'an') refreshAnomalyList();
+  if (name === 'rs') renderRiskScan();
+}
+
+// ── Risk Scan ──────────────────────────────────────────────────────────────
+const URGENCY_ORDER = ['Critical','High','Elevated','Moderate','Safe'];
+const URGENCY_COL   = { Critical:'#ef4444', High:'#f97316', Elevated:'#f59e0b', Moderate:'#3b82f6', Safe:'#22c55e' };
+
+function renderRiskScan() {
+  const filter = document.getElementById('rs-filter').value;
+  const list   = document.getElementById('rs-list');
+
+  const rows = AREAS.map(a => {
+    const ratio    = a.base_load_kw / a.feeder_capacity_kw;
+    const urgency  = a.urgency || (ratio >= 1 ? 'Critical' : ratio >= 0.9 ? 'High' : ratio >= 0.8 ? 'Elevated' : ratio >= 0.65 ? 'Moderate' : 'Safe');
+    return { fsa: a.fsa, area: a.area || a.fsa, ratio, urgency, base: a.base_load_kw, cap: a.feeder_capacity_kw };
+  }).filter(r => {
+    if (filter === 'all') return true;
+    return URGENCY_ORDER.indexOf(r.urgency) <= URGENCY_ORDER.indexOf(filter);
+  }).sort((a, b) => b.ratio - a.ratio);
+
+  if (!rows.length) { list.innerHTML = '<div style="color:#555;font-size:13px;padding:8px 0">No areas match filter.</div>'; return; }
+
+  list.innerHTML = rows.map(r => {
+    const pct  = Math.min(r.ratio * 100, 100).toFixed(0);
+    const col  = URGENCY_COL[r.urgency] || '#555';
+    const bar  = Math.min(r.ratio * 100, 100);
+    return `
+      <div style="background:#1a1d27;border:1px solid #2e3147;border-radius:8px;padding:9px 10px;margin-bottom:6px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+          <span style="font-weight:700;font-size:13px;color:#fff">${r.fsa} <span style="font-weight:400;color:#666;font-size:11px">${r.area}</span></span>
+          <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:color-mix(in srgb,${col} 18%,#1a1d27);color:${col}">${r.urgency}</span>
+        </div>
+        <div style="height:5px;background:#252836;border-radius:3px;overflow:hidden">
+          <div style="height:100%;width:${bar}%;background:${col};border-radius:3px;transition:width 0.3s"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:10px;color:#555">
+          <span>${r.base.toLocaleString()} kW load</span>
+          <span>${pct}% of ${r.cap.toLocaleString()} kW capacity</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── Stress Test ────────────────────────────────────────────────────────────
+// Populate stress-test FSA select (once AREAS loaded)
+(function() {
+  const sel = document.getElementById('st-fsa');
+  AREAS.forEach(a => {
+    const opt = document.createElement('option');
+    opt.value = a.fsa;
+    opt.textContent = (a.area && a.area !== a.fsa) ? `${a.area} (${a.fsa})` : a.fsa;
+    sel.appendChild(opt);
+  });
+})();
+
+function runStressTest() {
+  const fsa   = document.getElementById('st-fsa').value;
+  const extra = parseInt(document.getElementById('st-evs').value) || 50;
+  if (!fsa) return;
+
+  const area = AREAS.find(a => a.fsa === fsa);
+  if (!area) return;
+
+  const avgKw      = area.avg_charger_power_kw || 7.2;
+  const peakShare  = area.peak_charging_share  || 0.12;
+  const currentKw  = area.base_load_kw;
+  const capKw      = area.feeder_capacity_kw;
+  const extraKw    = extra * avgKw * peakShare;
+  const totalKw    = currentKw + extraKw;
+  const headroomKw = capKw - totalKw;
+  const headroomPct = (headroomKw / capKw * 100).toFixed(1);
+  const overloaded = headroomKw < 0;
+
+  document.getElementById('st-current-load').textContent = currentKw.toLocaleString() + ' kW';
+  document.getElementById('st-extra-load').textContent   = Math.round(extraKw).toLocaleString() + ' kW';
+
+  const hrEl = document.getElementById('st-headroom');
+  hrEl.textContent = overloaded
+    ? `−${Math.abs(headroomPct)}% over`
+    : `${headroomPct}% left`;
+  hrEl.className = 'gt-stat-val ' + (overloaded ? 'red' : headroomPct < 10 ? 'red' : headroomPct < 20 ? '' : 'green');
+
+  const insight = document.getElementById('st-insight');
+  insight.textContent = overloaded
+    ? `Adding ${extra} EVs to ${fsa} would exceed feeder capacity by ${Math.abs(headroomKw).toFixed(0)} kW. Upgrade or demand-response required.`
+    : `Adding ${extra} EVs to ${fsa} leaves ${headroomKw.toFixed(0)} kW of headroom (${headroomPct}% of capacity).`;
+  insight.style.borderLeftColor = overloaded ? '#ef4444' : headroomPct < 20 ? '#f59e0b' : '#22c55e';
+
+  const warnEl = document.getElementById('st-warn');
+  if (overloaded) {
+    warnEl.textContent = `⚠ Feeder overloaded by ${Math.abs(headroomKw).toFixed(0)} kW — run DR Optimizer to flatten the curve.`;
+    warnEl.classList.add('visible');
+  } else {
+    warnEl.classList.remove('visible');
+  }
+
+  document.getElementById('st-result').style.display = 'block';
+}
+
+// ── Demand Response ───────────────────────────────────────────────────────
+let _drChart = null;
+async function runDemandResponse() {
+  const fsa    = document.getElementById('dr-fsa').value;
+  const mode   = document.getElementById('dr-mode').value;
+  const evs    = parseInt(document.getElementById('dr-evs').value) || 50;
+  const energy = parseFloat(document.getElementById('dr-energy').value) || 30;
+
+  const body = { fsa, mode, num_evs: evs, energy_kwh: energy };
+  const res  = await fetch('/api/demand-response', {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+  });
+  const d = await res.json();
+  if (d.error) { alert(d.error); return; }
+
+  document.getElementById('dr-summary').textContent    = d.summary;
+  document.getElementById('dr-peak-managed').textContent   = d.peak_managed + ' kW';
+  document.getElementById('dr-peak-unmanaged').textContent = d.peak_unmanaged + ' kW';
+  document.getElementById('dr-reduction').textContent  = d.peak_reduction_pct + '%';
+  const avoidEl = document.getElementById('dr-avoid');
+  if (d.avoid_hours?.length) {
+    avoidEl.textContent = '⚠ Avoid charging: ' + d.avoid_hours.join(', ');
+    avoidEl.classList.add('visible');
+  } else {
+    avoidEl.classList.remove('visible');
+  }
+
+  document.getElementById('dr-result').classList.add('visible');
+
+  const ctx = document.getElementById('dr-chart').getContext('2d');
+  if (_drChart) _drChart.destroy();
+  _drChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: d.hours,
+      datasets: [
+        { label: 'Base load', data: d.base_load, backgroundColor: 'rgba(78,168,222,0.5)', stack:'s' },
+        { label: 'EV schedule', data: d.ev_schedule, backgroundColor: 'rgba(34,197,94,0.7)', stack:'s' },
+        { label: 'Unmanaged EV', data: d.unmanaged_load.map((v,i)=>v - d.base_load[i]),
+          backgroundColor: 'rgba(248,113,113,0.35)', stack:'u', borderColor:'rgba(248,113,113,0.6)', borderWidth:1 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color:'#aaa', font:{size:10} } } },
+      scales: {
+        x: { ticks:{ color:'#666', font:{size:9}, maxRotation:45 }, grid:{color:'#1e2535'} },
+        y: { ticks:{ color:'#666', font:{size:9} }, grid:{color:'#1e2535'},
+          title:{ display:true, text:'kW', color:'#666', font:{size:9} } }
+      },
+      annotation: { annotations: [{
+        type:'line', yMin: d.feeder_capacity, yMax: d.feeder_capacity,
+        borderColor:'#ef4444', borderWidth:1.5, borderDash:[4,4],
+        label:{ content:'Capacity', enabled:true, color:'#ef4444', font:{size:9} }
+      }]}
+    }
+  });
+}
+
+// ── Feeder Forecast ───────────────────────────────────────────────────────
+let _fcChart = null;
+async function runForecast() {
+  const fsa = document.getElementById('fc-fsa').value;
+  if (!fsa) { alert('Select an FSA first.'); return; }
+
+  const res = await fetch(`/api/forecast/${fsa}`);
+  const d   = await res.json();
+  if (d.error) { alert(d.error); return; }
+
+  const urgClass = { Critical:'urg-critical', High:'urg-high', Elevated:'urg-elevated',
+                     Moderate:'urg-moderate', Safe:'urg-safe' }[d.urgency] || 'urg-safe';
+  document.getElementById('fc-summary').innerHTML =
+    `<b>${fsa}</b> <span class="urgency-chip ${urgClass}">${d.urgency}</span><br>` +
+    (d.months_to_overload
+      ? `Grid hits 100% capacity by <b>${d.overload_date_moderate}</b> (moderate growth). ` +
+        `Early scenario: ${d.overload_date_early}.`
+      : `Grid stays within capacity for the 3-year forecast horizon.`);
+  document.getElementById('fc-overload-date').textContent = d.overload_date_moderate;
+  document.getElementById('fc-current-ratio').textContent = (d.current_ratio * 100).toFixed(0) + '%';
+
+  document.getElementById('fc-result').classList.add('visible');
+
+  // Sample every 3 months to keep chart readable
+  const step = 3;
+  const idx  = d.labels.map((_,i) => i).filter(i => i % step === 0);
+  const lbl  = idx.map(i => d.labels[i]);
+  const cap  = new Array(idx.length).fill(d.feeder_capacity);
+
+  const ctx = document.getElementById('fc-chart').getContext('2d');
+  if (_fcChart) _fcChart.destroy();
+  _fcChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: lbl,
+      datasets: [
+        { label: 'P90 band', data: idx.map(i=>d.p90[i]), fill:'+1',
+          borderColor:'transparent', backgroundColor:'rgba(239,68,68,0.15)', pointRadius:0 },
+        { label: 'High growth', data: idx.map(i=>d.high[i]),
+          borderColor:'#ef4444', borderWidth:1, borderDash:[3,3], pointRadius:0, fill:false },
+        { label: 'Moderate (baseline)', data: idx.map(i=>d.moderate[i]),
+          borderColor:'#f59e0b', borderWidth:2, pointRadius:0, fill:false },
+        { label: 'Low growth', data: idx.map(i=>d.low[i]),
+          borderColor:'#22c55e', borderWidth:1, borderDash:[3,3], pointRadius:0, fill:false },
+        { label: 'P10 band', data: idx.map(i=>d.p10[i]), fill:'-1',
+          borderColor:'transparent', backgroundColor:'rgba(34,197,94,0.1)', pointRadius:0 },
+        { label: 'Feeder capacity', data: cap,
+          borderColor:'#ef4444', borderWidth:1.5, borderDash:[5,3], pointRadius:0, fill:false },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color:'#aaa', font:{size:9}, boxWidth:12 } } },
+      scales: {
+        x: { ticks:{ color:'#666', font:{size:9}, maxRotation:45 }, grid:{color:'#1e2535'} },
+        y: { ticks:{ color:'#666', font:{size:9} }, grid:{color:'#1e2535'},
+          title:{ display:true, text:'kW', color:'#666', font:{size:9} } }
+      }
+    }
+  });
+}
+
+// ── Live Anomaly Intelligence ──────────────────────────────────────────────
+let _anomalySSE = null;
+function startAnomalyStream() {
+  if (_anomalySSE) return;
+  _anomalySSE = new EventSource('/api/anomalies/stream');
+  _anomalySSE.onmessage = (e) => {
+    const data = JSON.parse(e.data);
+    if (data.type === 'anomaly') {
+      _showAnomalyAlert(data);
+      refreshAnomalyList();
+    }
+  };
+  _anomalySSE.onerror = () => { _anomalySSE = null; };
+}
+
+function _showAnomalyAlert(a) {
+  const bar = document.getElementById('anomaly-alert-bar');
+  const count = parseInt(document.getElementById('anomaly-alert-count').textContent) + 1;
+  document.getElementById('anomaly-alert-count').textContent = count;
+  document.getElementById('anomaly-alert-names').textContent = a.name + ': ' + a.reason;
+  bar.classList.add('visible');
+}
+
+async function refreshAnomalyList() {
+  const res = await fetch('/api/anomalies/live');
+  const anomalies = await res.json();
+  const list = document.getElementById('anomaly-live-list');
+  document.getElementById('anomaly-last-check').textContent =
+    'Last checked: ' + new Date().toLocaleTimeString();
+
+  if (!anomalies.length) {
+    list.innerHTML = '<div style="color:#22c55e;font-size:13px;padding:6px 0">✓ No anomalies detected</div>';
+    return;
+  }
+  list.innerHTML = anomalies.map(a => `
+    <div style="background:#252836;border:1px solid ${a.weather_status==='Offline'?'#ef4444':'#f97316'};border-radius:8px;padding:10px;margin-bottom:8px">
+      <div style="font-weight:700;font-size:13px;color:#fff">${a.name||'Unknown station'}</div>
+      <div style="font-size:12px;color:#f87171;margin-top:3px">${a.reason}</div>
+      <div style="font-size:11px;color:#666;margin-top:3px">Status: ${a.weather_status} · ${new Date(a.detected_at).toLocaleTimeString()}</div>
+    </div>`).join('');
 }
 
 // ── Tab switching ─────────────────────────────────────────────────────────
-const TAB_VIEWS = ['overview','nearby','winter','simulate','station','machine','ml','reports','profile'];
+const TAB_VIEWS = ['overview','nearby','grid','station','machine','reports','profile'];
 function showTab(name) {
-  TAB_VIEWS.forEach(t=>{ document.getElementById(`view-${t}`).classList.toggle('active', t===name); });
+  TAB_VIEWS.forEach(t=>{
+    const el = document.getElementById(`view-${t}`);
+    if (el) el.classList.toggle('active', t===name);
+  });
   document.querySelectorAll('#panel-tabs .tab').forEach((el,i)=>{
-    el.classList.toggle('active',['overview','nearby','winter','simulate','ml','reports','profile'][i]===name);
+    el.classList.toggle('active',['overview','nearby','grid','reports','profile'][i]===name);
   });
   if (name==='reports') loadReports();
-  if (name==='winter') loadWinterHistory();
+  if (name==='grid') { refreshAnomalyList(); startAnomalyStream(); }
+}
+
+// ── Simulate floating panel ───────────────────────────────────────────────
+function _closestScenario() {
+  const t   = WEATHER.current_temp_c;
+  const evt = (WEATHER.current_event || '').toLowerCase();
+  if (evt.includes('blizzard') || t <= -20) return 'winter_extreme';
+  if (evt.includes('ice') || (t <= -3 && evt.includes('rain'))) return 'ice_storm';
+  if (t <= -8) return 'cold_snap';
+  if (t >= 33) return 'heat_wave';
+  if (evt.includes('wind') || WEATHER.wind_speed_kmh > 60) return 'high_wind';
+  if (evt.includes('rain') || evt.includes('storm')) return 'heavy_rain';
+  return null;
+}
+
+function toggleSimPanel() {
+  const panel = document.getElementById('sim-float-panel');
+  const btn   = document.getElementById('btn-simulate');
+  const isOpen = panel.classList.contains('visible');
+  if (!isOpen) {
+    // Badge the closest-matching scenario
+    const match = _closestScenario();
+    document.querySelectorAll('.sim-card').forEach(el => {
+      el.querySelector('.weather-now-badge')?.remove();
+    });
+    if (match) {
+      const card = document.getElementById('scard-' + match);
+      if (card) {
+        const badge = document.createElement('div');
+        badge.className = 'weather-now-badge';
+        badge.style.cssText = 'font-size:9px;font-weight:700;color:#4ea8de;margin-top:3px;letter-spacing:0.5px';
+        badge.textContent = '📡 MATCHES NOW';
+        card.appendChild(badge);
+        card.style.borderColor = '#4ea8de';
+      }
+    }
+  }
+  panel.classList.toggle('visible', !isOpen);
+  btn.classList.toggle('on', !isOpen);
 }
 
 // ── Simulation engine ─────────────────────────────────────────────────────
@@ -1574,22 +2311,34 @@ function selectScenario(key) {
   const result = runSimulation(key);
   _activeSim = key;
   renderSimOverlay(result);
-  renderSimResults(result);
-  document.getElementById('sim-results').style.display = 'block';
 
-  // Heatmap: switch to scenario gradient and use sim_ratio as intensity
+  const s = SIM_SCENARIOS[key];
+  const overloaded = result.fsaResults.filter(a => a.sim_level === 'Overload').length;
+  const currentOver = AREAS.filter(a => a.risk_level === 'Overload').length;
+  const delta = overloaded - currentOver;
+  const offlineCount = result.stationResults.filter(st => st.sim_status === 'Offline' || st.sim_status === 'High Risk').length;
+
+  document.getElementById('sim-bar-icon').textContent = s.icon;
+  document.getElementById('sim-bar-name').textContent = s.label;
+  document.getElementById('sim-bar-overloaded').textContent =
+    `${overloaded} FSAs overloaded (${delta >= 0 ? '+' : ''}${delta} vs now)`;
+  document.getElementById('sim-bar-stations').textContent =
+    `${offlineCount} stations offline/at-risk`;
+  document.getElementById('sim-active-bar').classList.add('visible');
+
+  // Close the picker panel
+  document.getElementById('sim-float-panel').classList.remove('visible');
+  document.getElementById('btn-simulate').classList.remove('on');
+
   const grad = SCENARIO_GRADIENT[key] || HEAT_GRADIENT_NORMAL;
   if (_heatLayer) map.removeLayer(_heatLayer);
   const points = _buildHeatPoints(result.fsaResults, 'sim_ratio');
   _heatLayer = _makeHeatLayer(points, grad);
   _heatLayer.addTo(map);
-  const s = SIM_SCENARIOS[key];
   _updateLegend(grad, `${s.icon} ${s.label} — grid stress`,
     ['Safe', 'Elevated', 'Near Limit', 'Overloaded']);
   document.getElementById('btn-heatmap').classList.add('on');
   _heatOn = true;
-
-  // Flow arrows
   _addFlowArrows(key);
 }
 
@@ -1598,9 +2347,7 @@ function clearSimulation() {
   layers.sim.clearLayers();
   if (map.hasLayer(layers.sim)) map.removeLayer(layers.sim);
   document.querySelectorAll('.sim-card').forEach(el => el.classList.remove('active'));
-  document.getElementById('sim-results').style.display = 'none';
-
-  // Restore normal heatmap if it was on, else remove it
+  document.getElementById('sim-active-bar').classList.remove('visible');
   _clearFlowArrows();
   if (_heatLayer) map.removeLayer(_heatLayer);
   if (_heatOn) {
@@ -1658,172 +2405,6 @@ function renderSimOverlay(result) {
   if (!map.hasLayer(layers.sim)) layers.sim.addTo(map);
 }
 
-function renderSimResults(result) {
-  const s = SIM_SCENARIOS[result.key];
-
-  document.getElementById('sim-banner-icon').textContent  = s.icon;
-  document.getElementById('sim-banner-label').textContent = s.label;
-  document.getElementById('sim-banner-desc').textContent  = s.description;
-
-  // FSA stats
-  const overloaded = result.fsaResults.filter(a => a.sim_level === 'Overload').length;
-  const currentOver = AREAS.filter(a => a.risk_level === 'Overload').length;
-  const delta = overloaded - currentOver;
-  const avgRatio = (result.fsaResults.reduce((s,a) => s + (a.sim_ratio||0), 0) / result.fsaResults.length).toFixed(2);
-
-  document.getElementById('sim-overloaded').textContent = overloaded;
-  const deltaEl = document.getElementById('sim-delta');
-  deltaEl.textContent = (delta >= 0 ? '+' : '') + delta + ' areas';
-  deltaEl.style.color = delta > 0 ? '#ef4444' : delta < 0 ? '#22c55e' : '#888';
-  document.getElementById('sim-risk-ratio').textContent = avgRatio;
-  document.getElementById('sim-wfactor').textContent = s.weather_factor.toFixed(2) + '×';
-
-  // Station stats
-  const cnt = { Operational: 0, Degraded: 0, 'High Risk': 0, Offline: 0 };
-  result.stationResults.forEach(st => { if (cnt[st.sim_status] !== undefined) cnt[st.sim_status]++; });
-  const total = Object.values(cnt).reduce((a,b) => a+b, 0) || 1;
-
-  document.getElementById('sim-cnt-op').textContent = cnt['Operational'];
-  document.getElementById('sim-cnt-dg').textContent = cnt['Degraded'];
-  document.getElementById('sim-cnt-hr').textContent = cnt['High Risk'];
-  document.getElementById('sim-cnt-of').textContent = cnt['Offline'];
-  document.getElementById('sim-bar-op').style.width = (cnt['Operational']/total*100).toFixed(0) + '%';
-  document.getElementById('sim-bar-dg').style.width = (cnt['Degraded']/total*100).toFixed(0) + '%';
-  document.getElementById('sim-bar-hr').style.width = (cnt['High Risk']/total*100).toFixed(0) + '%';
-  document.getElementById('sim-bar-of').style.width = (cnt['Offline']/total*100).toFixed(0) + '%';
-
-  // Problems
-  document.getElementById('sim-problems').innerHTML = s.problems.map(p =>
-    `<div class="sim-problem-item"><div class="sim-problem-dot"></div><div>${p}</div></div>`
-  ).join('');
-}
-
-// ── Winter history ─────────────────────────────────────────────────────────
-let _winterLoaded = false;
-function loadWinterHistory() {
-  if (_winterLoaded) return;
-  fetch('/api/winter-history')
-    .then(r => r.json())
-    .then(data => {
-      _winterLoaded = true;
-      renderWinterHistory(data);
-      document.getElementById('winter-loading').style.display = 'none';
-      document.getElementById('winter-content').style.display = 'block';
-    })
-    .catch(() => {
-      document.getElementById('winter-loading').textContent = 'Failed to load winter data.';
-    });
-}
-
-function _eventClass(event) {
-  const e = (event || '').toLowerCase();
-  if (e.includes('blizzard')) return 'event-blizzard';
-  if (e.includes('extreme')) return 'event-extreme';
-  if (e.includes('cold snap')) return 'event-cold-snap';
-  if (e.includes('snow')) return 'event-snow';
-  if (e.includes('wind')) return 'event-wind';
-  return 'event-normal';
-}
-
-function renderWinterHistory(data) {
-  const history = data.history || [];
-  const future = data.future_projections || [];
-
-  // ── Past winters: coldest day rows ──────────────────────────────────────
-  const histEl = document.getElementById('winter-history-rows');
-  histEl.innerHTML = history.map(w => {
-    const cd = w.coldest_day;
-    const st = w.worst_storm;
-    const gi = w.grid_impact;
-    const ss = w.season_stats;
-    const ec = _eventClass(cd.event);
-    return `
-      <div class="winter-season">
-        <div class="winter-label">${w.label}</div>
-        <div>
-          <span class="winter-coldest">${cd.temp_min_c}°C</span>
-          <span class="winter-event-pill ${ec}">${cd.event}</span>
-          <span class="winter-meta" style="margin-left:4px">${cd.date}</span>
-        </div>
-        <div class="winter-meta" style="margin-top:3px">
-          Worst storm: ${st.snowfall_cm}cm snow · ${st.wind_kmh}km/h wind · ${st.date}
-        </div>
-        <div class="winter-meta">
-          ${ss.cold_days_below_minus10} days below −10°C &nbsp;·&nbsp;
-          ${ss.extreme_cold_days_below_minus20} extreme (&lt;−20°C) &nbsp;·&nbsp;
-          ${ss.total_snowfall_cm}cm total snow
-        </div>
-        <div class="winter-meta" style="color:#f97316">
-          ${gi.overloaded_fsas_at_peak} FSAs overloaded at peak cold
-        </div>
-      </div>`;
-  }).join('');
-
-  // ── Bar chart: mean risk ratio at peak ──────────────────────────────────
-  const allStress = history.map(w => w.grid_impact.mean_risk_ratio_at_peak);
-  const maxStress = Math.max(...allStress, 0.01);
-  const barsEl = document.getElementById('winter-bars');
-  barsEl.innerHTML = history.map(w => {
-    const v = w.grid_impact.mean_risk_ratio_at_peak;
-    const pct = Math.round((v / maxStress) * 100);
-    const col = v >= 1.0 ? '#ef4444' : v >= 0.75 ? '#f97316' : '#4ea8de';
-    const shortLabel = w.label.replace('Winter ', '');
-    return `<div class="bar-row">
-      <div class="bar-label">${shortLabel}</div>
-      <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${col}"></div></div>
-      <div class="bar-val">${v.toFixed(2)}</div>
-    </div>`;
-  }).join('');
-
-  // ── Bar chart: overloaded FSAs ──────────────────────────────────────────
-  const allOver = history.map(w => w.grid_impact.overloaded_fsas_at_peak);
-  const maxOver = Math.max(...allOver, 1);
-  const overEl = document.getElementById('winter-overload-bars');
-  overEl.innerHTML = history.map(w => {
-    const v = w.grid_impact.overloaded_fsas_at_peak;
-    const pct = Math.round((v / maxOver) * 100);
-    const shortLabel = w.label.replace('Winter ', '');
-    return `<div class="bar-row">
-      <div class="bar-label">${shortLabel}</div>
-      <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:#ef4444"></div></div>
-      <div class="bar-val">${v}</div>
-    </div>`;
-  }).join('');
-
-  // ── Future winters ──────────────────────────────────────────────────────
-  const futEl = document.getElementById('winter-future');
-  futEl.innerHTML = future.map(f => {
-    const m = f.scenarios.moderate;
-    const typOver = m.overloaded_fsas_typical_cold;
-    const sevOver = m.overloaded_fsas_severe_cold;
-    const typStress = m.mean_risk_ratio_typical;
-    const sevStress = m.mean_risk_ratio_severe;
-    const overClass = sevOver > 20 ? 'danger' : sevOver > 10 ? 'warn' : '';
-    return `<div class="future-card">
-      <div class="future-label">${f.label}</div>
-      <div class="future-row">
-        <span class="future-key">EVs vs today</span>
-        <span class="future-val">+${Math.round((m.ev_multiplier - 1) * 100)}%</span>
-      </div>
-      <div class="future-row">
-        <span class="future-key">Typical cold: overloaded FSAs</span>
-        <span class="future-val ${typOver > 10 ? 'warn' : ''}">${typOver}</span>
-      </div>
-      <div class="future-row">
-        <span class="future-key">Severe cold: overloaded FSAs</span>
-        <span class="future-val ${overClass}">${sevOver}</span>
-      </div>
-      <div class="future-row">
-        <span class="future-key">Mean risk ratio — typical</span>
-        <span class="future-val">${typStress.toFixed(2)}</span>
-      </div>
-      <div class="future-row">
-        <span class="future-key">Mean risk ratio — severe</span>
-        <span class="future-val ${sevStress >= 1.0 ? 'danger' : sevStress >= 0.8 ? 'warn' : ''}">${sevStress.toFixed(2)}</span>
-      </div>
-    </div>`;
-  }).join('');
-}
 </script>
 </body>
 </html>
