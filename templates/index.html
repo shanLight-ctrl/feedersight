@@ -2068,40 +2068,44 @@ function runStressTest() {
     warnEl.classList.remove('visible');
   }
 
-  document.getElementById('st-result').style.display = 'block';
+  const resultEl = document.getElementById('st-result');
+  resultEl.style.display = 'block';
 
-  // Chart
-  const years = Array.from({length: 11}, (_, i) => i);
-  const labels = years.map(y => y === 0 ? 'Now' : `+${y}yr`);
-  const cap = years.map(() => area.feeder_capacity_kw);
+  // Defer chart creation until the browser has painted the now-visible container
+  // (canvas has 0-width inside display:none, causing Chart.js to render nothing)
+  requestAnimationFrame(() => {
+    const years = Array.from({length: 11}, (_, i) => i);
+    const labels = years.map(y => y === 0 ? 'Now' : `+${y}yr`);
+    const cap = years.map(() => area.feeder_capacity_kw);
 
-  const ctx = document.getElementById('st-chart').getContext('2d');
-  if (_stChart) _stChart.destroy();
-  _stChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [
-        ...ST_SCENARIOS.map(s => ({
-          label: `${s.label} (${s.desc})`,
-          data: years.map(y => _stLoadAtYear(area, s.cagr, y)),
-          borderColor: s.color,
-          borderWidth: s.key === 'moderate' ? 2.5 : 1.5,
-          borderDash: s.key === 'moderate' ? [] : [4,3],
-          fill: false, tension: 0.3, pointRadius: 0,
-        })),
-        { label:'Feeder capacity', data:cap, borderColor:'#ef4444', borderWidth:1.5, borderDash:[6,3], fill:false, tension:0, pointRadius:0 }
-      ]
-    },
-    options: {
-      responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{ labels:{ color:'#aaa', font:{size:9}, boxWidth:10 } } },
-      scales:{
-        x:{ ticks:{ color:'#666', font:{size:9} }, grid:{ color:'#1e2535' } },
-        y:{ ticks:{ color:'#666', font:{size:9} }, grid:{ color:'#1e2535' },
-            title:{ display:true, text:'kW', color:'#666', font:{size:9} } }
+    const ctx = document.getElementById('st-chart').getContext('2d');
+    if (_stChart) _stChart.destroy();
+    _stChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          ...ST_SCENARIOS.map(s => ({
+            label: `${s.label} (${s.desc})`,
+            data: years.map(y => _stLoadAtYear(area, s.cagr, y)),
+            borderColor: s.color,
+            borderWidth: s.key === 'moderate' ? 2.5 : 1.5,
+            borderDash: s.key === 'moderate' ? [] : [4,3],
+            fill: false, tension: 0.3, pointRadius: 0,
+          })),
+          { label:'Feeder capacity', data:cap, borderColor:'#ef4444', borderWidth:1.5, borderDash:[6,3], fill:false, tension:0, pointRadius:0 }
+        ]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ labels:{ color:'#aaa', font:{size:9}, boxWidth:10 } } },
+        scales:{
+          x:{ ticks:{ color:'#666', font:{size:9} }, grid:{ color:'#1e2535' } },
+          y:{ ticks:{ color:'#666', font:{size:9} }, grid:{ color:'#1e2535' },
+              title:{ display:true, text:'kW', color:'#666', font:{size:9} } }
+        }
       }
-    }
+    });
   });
 }
 
@@ -2174,6 +2178,7 @@ function runBufferImpact() {
 
   document.getElementById('bf-result').style.display = 'block';
 
+  requestAnimationFrame(() => {
   const years  = Array.from({length:11}, (_,i) => i);
   const labels = years.map(y => y === 0 ? 'Now' : `+${y}yr`);
   const cap    = years.map(() => area.feeder_capacity_kw);
@@ -2208,6 +2213,7 @@ function runBufferImpact() {
       }
     }
   });
+  }); // end requestAnimationFrame
 }
 
 // ── Demand Response ───────────────────────────────────────────────────────
