@@ -247,22 +247,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
 .role-option .role-sub { font-size:12px; color:#888; margin-top:3px; line-height:1.4; }
 .role-option.utility:hover { border-color:#a78bfa; background:#1e1a35; }
 
-/* ── Simulate floating panel ── */
-#sim-float-panel { position:absolute; bottom:320px; right:10px; z-index:1000; background:#1a1d27; border:1px solid #3e4460; border-radius:12px; padding:14px; width:272px; box-shadow:0 4px 24px rgba(0,0,0,0.6); display:none; }
-#sim-float-panel.visible { display:block; }
-.sim-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
-.sim-card { background: #252836; border: 1px solid #2e3147; border-radius: 10px; padding: 10px 8px; text-align: center; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
-.sim-card:hover { border-color: #4ea8de; background: #1e2535; }
-.sim-card.active { border-color: #4ea8de; background: #1a2d45; }
-.sim-icon { font-size: 22px; margin-bottom: 3px; }
-.sim-name { font-size: 11px; font-weight: 700; color: #e0e0e0; }
-.sim-sub { font-size: 10px; color: #666; margin-top: 2px; }
-/* ── Active simulation bar ── */
-#sim-active-bar { display:none; background:#1a2535; border-bottom:1px solid #2e4060; padding:7px 16px; align-items:center; gap:10px; font-size:13px; }
-#sim-active-bar.visible { display:flex; }
-#sim-bar-stats { display:flex; gap:14px; flex:1; font-size:12px; color:#93c5fd; }
-#sim-bar-clear { background:none; border:1px solid #3e4460; border-radius:6px; color:#888; cursor:pointer; font-size:11px; padding:3px 10px; }
-#sim-bar-clear:hover { border-color:#ef4444; color:#ef4444; }
 
 /* ── Tab info banner ── */
 .tab-info { padding:10px 14px 11px; border-bottom:1px solid #1e2535; background:#13151f; }
@@ -301,7 +285,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
 .gt-stat-val.green { color:#22c55e; }
 .gt-stat-val.red   { color:#ef4444; }
 .gt-stat-key { font-size:9px; color:#555; text-transform:uppercase; letter-spacing:0.6px; margin-top:3px; }
-.gt-chart-wrap { background:#0d1117; border:1px solid #1e2535; border-radius:10px; padding:10px; }
+.gt-chart-wrap { background:#0d1117; border:1px solid #1e2535; border-radius:10px; padding:10px; overflow:hidden; }
 .gt-chart-label { font-size:10px; color:#555; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:6px; }
 
 /* ── Grid Tools chart popup ── */
@@ -315,7 +299,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
 #gt-chart-popup-scroll { padding:14px 16px 10px; overflow-y:auto; flex:1; }
 #gt-chart-popup-canvas-wrap { padding:0 16px 20px; flex-shrink:0; }
 #gt-chart-popup-canvas-wrap .gt-chart-label { margin-bottom:6px; }
-.gt-popup-chart-box { position:relative; height:220px; background:#0d1117; border:1px solid #1e2535; border-radius:10px; padding:10px; }
+.gt-popup-chart-box { position:relative; height:220px; overflow:hidden; background:#0d1117; border:1px solid #1e2535; border-radius:10px; padding:10px; }
 .gt-avoid { font-size:12px; color:#f87171; margin-top:8px; padding:6px 10px; background:#2d0f0f; border-radius:6px; display:none; }
 .gt-avoid.visible { display:block; }
 /* urgency chips */
@@ -487,16 +471,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
   <button onclick="document.getElementById('anomaly-alert-bar').style.display='none'" style="background:none;border:none;color:#555;cursor:pointer;font-size:15px;padding:0 4px">✕</button>
 </div>
 
-<!-- Active simulation bar -->
-<div id="sim-active-bar">
-  <span id="sim-bar-icon" style="font-size:18px"></span>
-  <span id="sim-bar-name" style="font-weight:700;color:#fff"></span>
-  <div id="sim-bar-stats">
-    <span id="sim-bar-overloaded"></span>
-    <span id="sim-bar-stations"></span>
-  </div>
-  <button id="sim-bar-clear" onclick="clearSimulation()">✕ Clear simulation</button>
-</div>
 
 <!-- Weather alert -->
 <div id="weather-banner" {% if weather_alert %}class="visible"{% endif %}>
@@ -506,21 +480,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
 <!-- ── Main ─────────────────────────────────────────────────────────────── -->
 <div id="main">
   <div id="map" style="position:relative">
-    <!-- Floating simulate panel -->
-    <div id="sim-float-panel">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <span style="font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:#888">Weather Scenario</span>
-        <button onclick="toggleSimPanel()" style="background:none;border:none;color:#555;cursor:pointer;font-size:16px;padding:0 2px">✕</button>
-      </div>
-      <div class="sim-grid">
-        <div class="sim-card" id="scard-winter_extreme" onclick="selectScenario('winter_extreme')"><div class="sim-icon">🥶</div><div class="sim-name">Winter Extreme</div><div class="sim-sub">−25°C blizzard</div></div>
-        <div class="sim-card" id="scard-cold_snap" onclick="selectScenario('cold_snap')"><div class="sim-icon">❄️</div><div class="sim-name">Cold Snap</div><div class="sim-sub">−15°C freeze</div></div>
-        <div class="sim-card" id="scard-ice_storm" onclick="selectScenario('ice_storm')"><div class="sim-icon">🌨️</div><div class="sim-name">Ice Storm</div><div class="sim-sub">−5°C freezing rain</div></div>
-        <div class="sim-card" id="scard-heat_wave" onclick="selectScenario('heat_wave')"><div class="sim-icon">🌡️</div><div class="sim-name">Heat Wave</div><div class="sim-sub">+38°C summer peak</div></div>
-        <div class="sim-card" id="scard-high_wind" onclick="selectScenario('high_wind')"><div class="sim-icon">💨</div><div class="sim-name">High Wind</div><div class="sim-sub">90 km/h gusts</div></div>
-        <div class="sim-card" id="scard-heavy_rain" onclick="selectScenario('heavy_rain')"><div class="sim-icon">🌧️</div><div class="sim-name">Heavy Rain</div><div class="sim-sub">50 mm/h flood risk</div></div>
-      </div>
-    </div>
 
     <!-- Gradient legend -->
     <div id="heatmap-legend">
@@ -546,9 +505,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
       </button>
       <button class="map-toggle-btn" id="btn-live" onclick="toggleLive()">
         <span class="tog-dot"></span>🔴 Live availability
-      </button>
-      <button class="map-toggle-btn" id="btn-simulate" onclick="toggleSimPanel()">
-        <span class="tog-dot"></span>⚡ Simulate
       </button>
     </div>
   </div>
@@ -722,6 +678,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
           <div class="gt-chip" style="--chip-color:#f59e0b" id="chip-bf" onclick="switchGridTool('bf')">
             <div class="gt-chip-icon">🔋</div>
             <div class="gt-chip-label">BUFFER</div>
+          </div>
+          <div class="gt-chip" style="--chip-color:#6b7280;min-width:unset;flex:0 0 auto;padding:8px 14px" onclick="clearGridTools()">
+            <div class="gt-chip-icon" style="font-size:14px">✕</div>
+            <div class="gt-chip-label">CLEAR</div>
           </div>
         </div>
 
@@ -1008,7 +968,7 @@ function getActiveProfile() {
 const map = L.map('map', {center:[43.75,-79.45], zoom:9});
 L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/">CARTO</a>',maxZoom:19}).addTo(map);
 
-const layers = {fsa:L.layerGroup(), stations:L.layerGroup(), recommended:L.layerGroup(), anomaly:L.layerGroup(), sim:L.layerGroup(), live:L.layerGroup()};
+const layers = {fsa:L.layerGroup(), stations:L.layerGroup(), recommended:L.layerGroup(), anomaly:L.layerGroup(), live:L.layerGroup()};
 layers.fsa.addTo(map);
 layers.anomaly.addTo(map);
 
@@ -1919,6 +1879,16 @@ function switchGridTool(name) {
   if (name === 'rs') renderRiskScan();
 }
 
+function clearGridTools() {
+  closeGtPopup();
+  ['dr-fsa','fc-fsa','an-fsa','st-fsa','bf-fsa'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.querySelectorAll('.gt-result').forEach(el => el.style.display = 'none');
+  switchGridTool('dr');
+}
+
 // ── Risk Scan ──────────────────────────────────────────────────────────────
 const URGENCY_ORDER = ['Critical','High','Elevated','Moderate','Safe'];
 const URGENCY_COL   = { Critical:'#ef4444', High:'#f97316', Elevated:'#f59e0b', Moderate:'#3b82f6', Safe:'#22c55e' };
@@ -2471,264 +2441,6 @@ function _closestScenario() {
   return null;
 }
 
-function toggleSimPanel() {
-  const panel = document.getElementById('sim-float-panel');
-  const btn   = document.getElementById('btn-simulate');
-  const isOpen = panel.classList.contains('visible');
-  if (!isOpen) {
-    // Badge the closest-matching scenario
-    const match = _closestScenario();
-    document.querySelectorAll('.sim-card').forEach(el => {
-      el.querySelector('.weather-now-badge')?.remove();
-    });
-    if (match) {
-      const card = document.getElementById('scard-' + match);
-      if (card) {
-        const badge = document.createElement('div');
-        badge.className = 'weather-now-badge';
-        badge.style.cssText = 'font-size:9px;font-weight:700;color:#4ea8de;margin-top:3px;letter-spacing:0.5px';
-        badge.textContent = '📡 MATCHES NOW';
-        card.appendChild(badge);
-        card.style.borderColor = '#4ea8de';
-      }
-    }
-  }
-  panel.classList.toggle('visible', !isOpen);
-  btn.classList.toggle('on', !isOpen);
-}
-
-// ── Simulation engine ─────────────────────────────────────────────────────
-const SIM_SCENARIOS = {
-  winter_extreme: {
-    label: 'Winter Extreme', icon: '🥶', accent: '#3b82f6',
-    temp_c: -25, weather_factor: 1.45,
-    station_base: 0.40, event_boost: 0.30, dc_mult: 1.5,
-    description: '−25°C blizzard — heavy snow, ice on lines, extreme battery drain',
-    problems: [
-      'Battery efficiency drops ~40% — range cut by 35–50 km per charge',
-      'DC fast chargers 50% more likely to trip due to power fluctuations',
-      'Grid demand surges from heating + EV loads simultaneously',
-      'Ice accumulation can physically damage connector ports and screens',
-      'Snowdrifts may block access to outdoor charging stations',
-      'Pre-conditioning your battery on shore power strongly recommended'
-    ]
-  },
-  cold_snap: {
-    label: 'Cold Snap', icon: '❄️', accent: '#60a5fa',
-    temp_c: -15, weather_factor: 1.35,
-    station_base: 0.28, event_boost: 0.18, dc_mult: 1.35,
-    description: '−15°C overnight freeze — typical worst-case Toronto January night',
-    problems: [
-      'Battery efficiency drops ~25% — plan for shorter range than usual',
-      'Level 2 AC chargers may charge up to 15% slower in extreme cold',
-      'Grid heating load pushes several FSAs near capacity',
-      'Exposed connector ports may freeze if stations unused for hours',
-      'Lithium-ion cells accept charge slower below −10°C — expect longer sessions'
-    ]
-  },
-  ice_storm: {
-    label: 'Ice Storm', icon: '🌨️', accent: '#0ea5e9',
-    temp_c: -5, weather_factor: 1.25,
-    station_base: 0.52, event_boost: 0.38, dc_mult: 1.6,
-    description: '−5°C freezing rain — highest station outage risk of any scenario',
-    problems: [
-      'Ice coating on overhead lines causes the most power outages per year in GTA',
-      'Freezing rain on connector ports and display screens causes hardware failures',
-      'Road closures during active storms may make many stations unreachable',
-      'DC fast charger outage risk nearly doubles vs normal conditions',
-      'Grid voltage drops from line damage can forcibly terminate active charging sessions',
-      'Avoid outdoor charging during active freezing rain where possible'
-    ]
-  },
-  heat_wave: {
-    label: 'Heat Wave', icon: '🌡️', accent: '#ef4444',
-    temp_c: 38, weather_factor: 1.25,
-    station_base: 0.25, event_boost: 0.18, dc_mult: 1.3,
-    description: '+38°C summer peak — AC surge + thermal battery limits',
-    problems: [
-      'Simultaneous AC + EV charging pushes urban grid feeders near their limits',
-      'Battery thermal management throttles fast charging speed above 35°C',
-      'Prolonged heat reduces long-term battery capacity if cells stay hot',
-      'Downtown and dense FSAs face highest stress from building AC loads',
-      'Avoid charging between 2–6pm when grid and temperature both peak',
-      'Charge overnight — grid load and battery temps are both lower after midnight'
-    ]
-  },
-  high_wind: {
-    label: 'High Wind', icon: '💨', accent: '#8b5cf6',
-    temp_c: 10, weather_factor: 1.10,
-    station_base: 0.45, event_boost: 0.35, dc_mult: 1.3,
-    description: '90 km/h gusts — highest risk of line damage and widespread power loss',
-    problems: [
-      'Fallen trees on overhead lines are the #1 cause of multi-station outages in GTA',
-      'Flying debris can physically damage outdoor charger enclosures and screens',
-      'Power line surges and sags during gusts forcibly interrupt active charging sessions',
-      'Some outdoor DC fast chargers auto-shutdown for safety during extreme winds',
-      'Gusts increase even if no storm — check grid status before a long drive',
-      'Underground cable faults from wind events take longer to repair than overhead damage'
-    ]
-  },
-  heavy_rain: {
-    label: 'Heavy Rain', icon: '🌧️', accent: '#14b8a6',
-    temp_c: 18, weather_factor: 1.08,
-    station_base: 0.25, event_boost: 0.18, dc_mult: 1.2,
-    description: '50 mm/hr — flood risk to ground-level equipment, moderate grid impact',
-    problems: [
-      'Underground cable vaults flood and trip breakers serving nearby chargers',
-      'Outdoor DC fast chargers are rated for rain but not for standing water',
-      'Parking lot flooding physically blocks access to many station locations',
-      'Grid load is actually lower than cold scenarios — no heating or cooling surge',
-      'Most outages resolve within hours once rain stops and vaults drain',
-      'Check station status before driving — real-time map reflects conditions'
-    ]
-  }
-};
-
-const SIM_RISK_COLOR = {
-  'Overload':   '#dc2626',
-  'Near Limit': '#f97316',
-  'Elevated':   '#facc15',
-  'Safe':       '#22c55e',
-};
-
-let _activeSim = null;
-
-function _simRiskLevel(ratio) {
-  if (ratio > 1.0)  return 'Overload';
-  if (ratio > 0.85) return 'Near Limit';
-  if (ratio > 0.65) return 'Elevated';
-  return 'Safe';
-}
-
-function runSimulation(key) {
-  const s = SIM_SCENARIOS[key];
-  const wf = s.weather_factor;
-
-  const fsaResults = AREAS.map(a => {
-    const evLoad = (a.ev_count||0) * (a.peak_charging_share||0.12) * (a.avg_charger_power_kw||7.2) * wf;
-    const totalLoad = (a.base_load_kw||0) + evLoad;
-    const cap = a.feeder_capacity_kw || 1;
-    const simRatio = totalLoad / cap;
-    return { ...a, sim_ratio: simRatio, sim_level: _simRiskLevel(simRatio) };
-  });
-
-  const stationResults = STATIONS.map(st => {
-    if (!st.latitude || !st.longitude) return { ...st, sim_status: 'Operational' };
-    const isDC = (st.type||'').includes('DC');
-    const mult = isDC ? s.dc_mult : 1.0;
-    const alreadyDown = (st.status||'').toLowerCase().includes('not started');
-    const prob = alreadyDown ? 1.0 : Math.min((s.station_base + s.event_boost) * mult, 0.95);
-    const simStatus = prob >= 1.0 ? 'Offline'
-      : prob >= 0.55 ? 'Offline'
-      : prob >= 0.40 ? 'High Risk'
-      : prob >= 0.22 ? 'Degraded'
-      : 'Operational';
-    return { ...st, sim_prob: prob, sim_status: simStatus };
-  });
-
-  return { key, fsaResults, stationResults };
-}
-
-function selectScenario(key) {
-  document.querySelectorAll('.sim-card').forEach(el => el.classList.remove('active'));
-  document.getElementById('scard-'+key).classList.add('active');
-
-  const result = runSimulation(key);
-  _activeSim = key;
-  renderSimOverlay(result);
-
-  const s = SIM_SCENARIOS[key];
-  const overloaded = result.fsaResults.filter(a => a.sim_level === 'Overload').length;
-  const currentOver = AREAS.filter(a => a.risk_level === 'Overload').length;
-  const delta = overloaded - currentOver;
-  const offlineCount = result.stationResults.filter(st => st.sim_status === 'Offline' || st.sim_status === 'High Risk').length;
-
-  document.getElementById('sim-bar-icon').textContent = s.icon;
-  document.getElementById('sim-bar-name').textContent = s.label;
-  document.getElementById('sim-bar-overloaded').textContent =
-    `${overloaded} FSAs overloaded (${delta >= 0 ? '+' : ''}${delta} vs now)`;
-  document.getElementById('sim-bar-stations').textContent =
-    `${offlineCount} stations offline/at-risk`;
-  document.getElementById('sim-active-bar').classList.add('visible');
-
-  // Close the picker panel
-  document.getElementById('sim-float-panel').classList.remove('visible');
-  document.getElementById('btn-simulate').classList.remove('on');
-
-  const grad = SCENARIO_GRADIENT[key] || HEAT_GRADIENT_NORMAL;
-  if (_heatLayer) map.removeLayer(_heatLayer);
-  const points = _buildHeatPoints(result.fsaResults, 'sim_ratio');
-  _heatLayer = _makeHeatLayer(points, grad);
-  _heatLayer.addTo(map);
-  _updateLegend(grad, `${s.icon} ${s.label} — grid stress`,
-    ['Safe', 'Elevated', 'Near Limit', 'Overloaded']);
-  document.getElementById('btn-heatmap').classList.add('on');
-  _heatOn = true;
-  _addFlowArrows(key);
-}
-
-function clearSimulation() {
-  _activeSim = null;
-  layers.sim.clearLayers();
-  if (map.hasLayer(layers.sim)) map.removeLayer(layers.sim);
-  document.querySelectorAll('.sim-card').forEach(el => el.classList.remove('active'));
-  document.getElementById('sim-active-bar').classList.remove('visible');
-  _clearFlowArrows();
-  if (_heatLayer) map.removeLayer(_heatLayer);
-  if (_heatOn) {
-    const points = _buildHeatPoints(AREAS, 'risk_ratio');
-    _heatLayer = _makeHeatLayer(points, HEAT_GRADIENT_NORMAL);
-    _heatLayer.addTo(map);
-    _updateLegend(HEAT_GRADIENT_NORMAL, 'Grid stress — risk ratio',
-      ['Safe (<0.65)', 'Elevated', 'Near Limit', 'Overloaded (>1.0)']);
-  } else {
-    document.getElementById('heatmap-legend').classList.remove('visible');
-    document.getElementById('btn-heatmap').classList.remove('on');
-  }
-}
-
-function renderSimOverlay(result) {
-  layers.sim.clearLayers();
-
-  // FSA circles — larger and more opaque so they clearly overlay the base
-  result.fsaResults.forEach(a => {
-    if (!a.latitude || !a.longitude) return;
-    const col = SIM_RISK_COLOR[a.sim_level] || '#888';
-    const areaName = (a.area && a.area !== a.fsa) ? a.area : a.fsa;
-    L.circleMarker([a.latitude, a.longitude], {
-      radius: 11, color: '#fff', weight: 1.5,
-      fillColor: col, fillOpacity: 0.82
-    })
-    .bindTooltip(`[SIM] ${areaName} — ${a.sim_level} (${a.sim_ratio.toFixed(2)}×)`)
-    .bindPopup(`<div style="font-family:-apple-system,sans-serif;font-size:13px;min-width:200px">
-      <div style="font-size:11px;color:#6b7280;margin-bottom:4px">SIMULATION — ${SIM_SCENARIOS[result.key].label}</div>
-      <b style="font-size:14px">${areaName}</b>
-      <div style="font-weight:700;font-size:13px;color:${col};margin:6px 0">${a.sim_level} (${a.sim_ratio.toFixed(2)}× capacity)</div>
-      <div style="font-size:12px;color:#374151">
-        <div>Real risk today: ${(a.risk_ratio||0).toFixed(2)}×</div>
-        <div>Change: ${a.sim_ratio > (a.risk_ratio||0) ? '+' : ''}${(a.sim_ratio - (a.risk_ratio||0)).toFixed(2)}×</div>
-        <div>EVs registered: ${(a.ev_count||0).toLocaleString()}</div>
-      </div>
-    </div>`, { maxWidth: 260 })
-    .addTo(layers.sim);
-  });
-
-  // Station overlays — squares to distinguish from FSA circles
-  result.stationResults.forEach(s => {
-    if (!s.latitude || !s.longitude) return;
-    if (s.sim_status === 'Operational') return; // only show degraded/offline
-    const col = s.sim_status === 'Offline' ? '#9ca3af'
-      : s.sim_status === 'High Risk' ? '#f97316' : '#facc15';
-    L.circleMarker([s.latitude, s.longitude], {
-      radius: 5, color: '#1a1d27', weight: 1,
-      fillColor: col, fillOpacity: 0.95
-    })
-    .bindTooltip(`[SIM] ${s.name||'Station'} — ${s.sim_status}`)
-    .addTo(layers.sim);
-  });
-
-  if (!map.hasLayer(layers.sim)) layers.sim.addTo(map);
-}
 
 </script>
 
@@ -2764,16 +2476,12 @@ function renderSimOverlay(result) {
       <!-- Stress Test chart -->
       <div id="gt-popup-canvas-st" style="display:none">
         <div class="gt-chart-label">10-year load trajectory by growth scenario</div>
-        <div class="gt-popup-chart-box">
-          <div style="position:relative;height:190px;width:100%"><canvas id="st-chart"></canvas></div>
-        </div>
+        <div class="gt-popup-chart-box"><canvas id="st-chart"></canvas></div>
       </div>
       <!-- Buffer Impact chart -->
       <div id="gt-popup-canvas-bf" style="display:none">
         <div class="gt-chart-label">10-year load trajectory</div>
-        <div class="gt-popup-chart-box">
-          <div style="position:relative;height:190px;width:100%"><canvas id="bf-chart"></canvas></div>
-        </div>
+        <div class="gt-popup-chart-box"><canvas id="bf-chart"></canvas></div>
       </div>
     </div>
   </div>
