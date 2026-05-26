@@ -2053,7 +2053,7 @@ function runStressTest() {
   document.getElementById('gt-chart-popup-title').textContent = `Growth Sensitivity — ${fsa}`;
   document.getElementById('gt-chart-popup').classList.add('open');
 
-  requestAnimationFrame(() => {
+  setTimeout(() => {
     const years = Array.from({length: 11}, (_, i) => i);
     const labels = years.map(y => y === 0 ? 'Now' : `+${y}yr`);
     const cap = years.map(() => area.feeder_capacity_kw);
@@ -2086,7 +2086,7 @@ function runStressTest() {
         }
       }
     });
-  });
+  }, 50);
 }
 
 // ── Buffer Impact ──────────────────────────────────────────────────────────
@@ -2164,7 +2164,7 @@ function runBufferImpact() {
   document.getElementById('gt-chart-popup-title').textContent = `Buffer Impact — ${fsa}`;
   document.getElementById('gt-chart-popup').classList.add('open');
 
-  requestAnimationFrame(() => {
+  setTimeout(() => {
   const years  = Array.from({length:11}, (_,i) => i);
   const labels = years.map(y => y === 0 ? 'Now' : `+${y}yr`);
   const cap    = years.map(() => area.feeder_capacity_kw);
@@ -2199,7 +2199,7 @@ function runBufferImpact() {
       }
     }
   });
-  }); // end requestAnimationFrame
+  }, 50);
 }
 
 // ── Demand Response ───────────────────────────────────────────────────────
@@ -2764,12 +2764,16 @@ function renderSimOverlay(result) {
       <!-- Stress Test chart -->
       <div id="gt-popup-canvas-st" style="display:none">
         <div class="gt-chart-label">10-year load trajectory by growth scenario</div>
-        <div class="gt-popup-chart-box"><canvas id="st-chart"></canvas></div>
+        <div class="gt-popup-chart-box">
+          <div style="position:relative;height:190px;width:100%"><canvas id="st-chart"></canvas></div>
+        </div>
       </div>
       <!-- Buffer Impact chart -->
       <div id="gt-popup-canvas-bf" style="display:none">
         <div class="gt-chart-label">10-year load trajectory</div>
-        <div class="gt-popup-chart-box"><canvas id="bf-chart"></canvas></div>
+        <div class="gt-popup-chart-box">
+          <div style="position:relative;height:190px;width:100%"><canvas id="bf-chart"></canvas></div>
+        </div>
       </div>
     </div>
   </div>
