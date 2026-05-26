@@ -2047,7 +2047,7 @@ function runStressTest() {
         ]
       },
       options: {
-        responsive:true, maintainAspectRatio:false,
+        responsive:true, maintainAspectRatio:true, aspectRatio:2,
         plugins:{ legend:{ labels:{ color:'#aaa', font:{size:9}, boxWidth:10 } } },
         scales:{
           x:{ ticks:{ color:'#666', font:{size:9} }, grid:{ color:'#1e2535' } },
@@ -2160,7 +2160,7 @@ function runBufferImpact() {
       ]
     },
     options: {
-      responsive:true, maintainAspectRatio:false,
+      responsive:true, maintainAspectRatio:true, aspectRatio:2,
       plugins:{ legend:{ labels:{ color:'#aaa', font:{size:9}, boxWidth:10 } } },
       scales:{
         x:{ ticks:{ color:'#666', font:{size:9} }, grid:{ color:'#1e2535' } },
@@ -2255,7 +2255,7 @@ async function runDemandResponse() {
       ]
     },
     options: {
-      responsive: true, maintainAspectRatio: false,
+      responsive: true, maintainAspectRatio: true, aspectRatio: 2.5,
       plugins: { legend: { labels: { color:'#aaa', font:{size:10}, boxWidth:10 } } },
       scales: {
         x: { stacked: true, ticks:{ color:'#666', font:{size:9}, maxRotation:45 }, grid:{color:'#1e2535'} },
@@ -2361,7 +2361,7 @@ async function runForecast() {
       ]
     },
     options: {
-      responsive: true, maintainAspectRatio: false,
+      responsive: true, maintainAspectRatio: true, aspectRatio: 2.5,
       plugins: { legend: { labels: { color:'#aaa', font:{size:9}, boxWidth:10 } } },
       scales: {
         x: { ticks:{ color:'#666', font:{size:9}, maxRotation:45 }, grid:{color:'#1e2535'} },
