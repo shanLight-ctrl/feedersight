@@ -264,6 +264,13 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
 #sim-bar-clear { background:none; border:1px solid #3e4460; border-radius:6px; color:#888; cursor:pointer; font-size:11px; padding:3px 10px; }
 #sim-bar-clear:hover { border-color:#ef4444; color:#ef4444; }
 
+/* ── Tab info banner ── */
+.tab-info { padding:10px 14px 11px; border-bottom:1px solid #1e2535; background:#13151f; }
+.tab-info-row { display:flex; align-items:center; gap:7px; margin-bottom:3px; }
+.tab-info-icon { font-size:15px; line-height:1; }
+.tab-info-title { font-size:13px; font-weight:700; color:#e2e8f0; }
+.tab-info-desc { font-size:11px; color:#4a5568; line-height:1.45; padding-left:22px; }
+
 /* ── Grid Tools panel ── */
 .gt-picker { display:flex; flex-wrap:wrap; gap:6px; padding:12px 12px 0; }
 .gt-chip { flex:1; min-width:calc(33% - 4px); background:#252836; border:1px solid #2e3147; border-radius:8px; padding:8px 4px; text-align:center; cursor:pointer; transition:border-color 0.15s,background 0.15s; }
@@ -547,6 +554,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
 
       <!-- OVERVIEW -->
       <div class="panel-view active" id="view-overview">
+        <div class="tab-info">
+          <div class="tab-info-row"><span class="tab-info-icon">🌐</span><span class="tab-info-title">Overview</span></div>
+          <div class="tab-info-desc" data-role="driver">Live weather conditions and your personalised charging advice for tonight.</div>
+          <div class="tab-info-desc" data-role="utility">GTA-wide grid health snapshot — FSA risk levels, station status, and weather impact on load.</div>
+        </div>
         <div class="card">
           <div class="card-title">Weather — Toronto</div>
           <div class="card-value" id="ov-temp">{{ weather.current_temp_c }}°C</div>
@@ -594,6 +606,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
 
       <!-- NEAR ME -->
       <div class="panel-view" id="view-nearby">
+        <div class="tab-info">
+          <div class="tab-info-row"><span class="tab-info-icon">📍</span><span class="tab-info-title">Near Me</span></div>
+          <div class="tab-info-desc">Find EV chargers close to you. Set your search radius, pick your car, and get turn-by-turn directions to the nearest available station.</div>
+        </div>
         <button class="near-btn" onclick="locateMe()">📍 Use my location</button>
 
         <!-- Guest vehicle quick-setup (session only) -->
@@ -663,6 +679,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
 
       <!-- GRID TOOLS -->
       <div class="panel-view" id="view-grid">
+        <div class="tab-info">
+          <div class="tab-info-row"><span class="tab-info-icon">⚙️</span><span class="tab-info-title">Grid Tools</span></div>
+          <div class="tab-info-desc">Six tools for grid planners — DR optimisation, capacity forecast, anomaly detection, FSA risk scan, organic growth stress test, and battery buffer impact analysis.</div>
+        </div>
 
         <!-- Tool picker chips -->
         <div class="gt-picker">
@@ -685,6 +705,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
           <div class="gt-chip" style="--chip-color:#06b6d4" id="chip-st" onclick="switchGridTool('st')">
             <div class="gt-chip-icon">⚠️</div>
             <div class="gt-chip-label">STRESS</div>
+          </div>
+          <div class="gt-chip" style="--chip-color:#f59e0b" id="chip-bf" onclick="switchGridTool('bf')">
+            <div class="gt-chip-icon">🔋</div>
+            <div class="gt-chip-label">BUFFER</div>
           </div>
         </div>
 
@@ -761,7 +785,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
               </div>
             </div>
             <div class="gt-chart-wrap">
-              <div class="gt-chart-label">36-month projection</div>
+              <div class="gt-chart-label">12-month projection</div>
               <canvas id="fc-chart" height="120"></canvas>
             </div>
           </div>
@@ -796,10 +820,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
           <div id="rs-list"></div>
         </div>
 
-        <!-- ⑤ Stress Test -->
+        <!-- ⑤ Stress Test — organic growth sensitivity -->
         <div class="gt-tool" id="gt-st">
           <div style="font-size:11px;color:#555;margin-bottom:10px;letter-spacing:0.3px">
-            Add EVs to any area and instantly see feeder headroom
+            How fragile is a feeder to growth being faster than forecast?
           </div>
           <div class="gt-field">
             <label>Area (FSA)</label>
@@ -807,28 +831,82 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
               <option value="">— Select area —</option>
             </select>
           </div>
-          <div class="gt-field">
-            <label>Extra EVs to add: <span id="st-ev-val">50</span></label>
-            <input type="range" class="range-slider" id="st-evs" min="1" max="500" value="50"
-                   oninput="document.getElementById('st-ev-val').textContent=this.value; runStressTest()"/>
-          </div>
-          <div class="gt-result visible" id="st-result" style="display:none">
+          <div class="gt-result" id="st-result" style="display:none">
+            <div id="st-scenario-cards" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px"></div>
             <div class="gt-insight" id="st-insight"></div>
+            <div class="gt-chart-wrap">
+              <div class="gt-chart-label">10-year load trajectory by growth scenario</div>
+              <canvas id="st-chart" height="130"></canvas>
+            </div>
+            <div class="gt-avoid" id="st-warn" style="margin-top:8px"></div>
+          </div>
+        </div>
+
+        <!-- ⑥ Buffer Impact -->
+        <div class="gt-tool" id="gt-bf">
+          <div style="font-size:11px;color:#555;margin-bottom:10px;letter-spacing:0.3px">
+            Model how on-site battery storage at stations defers feeder upgrades
+          </div>
+          <div class="gt-field">
+            <label>Area (FSA)</label>
+            <select id="bf-fsa" onchange="runBufferImpact()">
+              <option value="">— Select area —</option>
+            </select>
+          </div>
+          <div class="gt-field">
+            <label>Stations with on-site battery: <span id="bf-pct-val">40</span>%</label>
+            <input type="range" class="range-slider" id="bf-pct" min="0" max="100" value="40"
+                   oninput="document.getElementById('bf-pct-val').textContent=this.value; runBufferImpact()"/>
+          </div>
+          <div class="gt-row">
+            <div class="gt-field">
+              <label>Grid connection (kW)</label>
+              <input type="number" id="bf-grid-kw" value="50" min="10" max="300" onchange="runBufferImpact()"/>
+            </div>
+            <div class="gt-field">
+              <label>Station peak output (kW)</label>
+              <input type="number" id="bf-peak-kw" value="150" min="50" max="400" onchange="runBufferImpact()"/>
+            </div>
+          </div>
+          <div class="gt-field">
+            <label>Growth scenario</label>
+            <select id="bf-scenario" onchange="runBufferImpact()">
+              <option value="0.20">Conservative — 20%/yr</option>
+              <option value="0.35" selected>Moderate — 35%/yr</option>
+              <option value="0.50">Aggressive — 50%/yr</option>
+            </select>
+          </div>
+
+          <div class="gt-result" id="bf-result" style="display:none">
+            <div class="gt-insight" id="bf-insight"></div>
             <div class="gt-stats">
               <div class="gt-stat">
-                <div class="gt-stat-val" id="st-current-load">—</div>
-                <div class="gt-stat-key">Current load (kW)</div>
+                <div class="gt-stat-val red" id="bf-without" style="font-size:14px">—</div>
+                <div class="gt-stat-key">Without buffers</div>
               </div>
               <div class="gt-stat">
-                <div class="gt-stat-val" id="st-extra-load">—</div>
-                <div class="gt-stat-key">Added EV load (kW)</div>
+                <div class="gt-stat-val green" id="bf-with" style="font-size:14px">—</div>
+                <div class="gt-stat-key">With buffers</div>
               </div>
               <div class="gt-stat">
-                <div class="gt-stat-val" id="st-headroom">—</div>
-                <div class="gt-stat-key">Headroom left</div>
+                <div class="gt-stat-val" style="color:#f59e0b" id="bf-gained">—</div>
+                <div class="gt-stat-key">Months gained</div>
               </div>
             </div>
-            <div class="gt-avoid" id="st-warn"></div>
+            <div class="gt-stats" style="grid-template-columns:1fr 1fr;margin-top:-6px">
+              <div class="gt-stat">
+                <div class="gt-stat-val green" id="bf-headroom" style="font-size:15px">—</div>
+                <div class="gt-stat-key">Headroom freed (kW)</div>
+              </div>
+              <div class="gt-stat">
+                <div class="gt-stat-val green" id="bf-reduction" style="font-size:15px">—</div>
+                <div class="gt-stat-key">Peak load cut</div>
+              </div>
+            </div>
+            <div class="gt-chart-wrap" style="margin-top:6px">
+              <div class="gt-chart-label">10-year load trajectory</div>
+              <canvas id="bf-chart" height="130"></canvas>
+            </div>
           </div>
         </div>
 
@@ -838,6 +916,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
 
       <!-- REPORTS -->
       <div class="panel-view" id="view-reports">
+        <div class="tab-info">
+          <div class="tab-info-row"><span class="tab-info-icon">⚑</span><span class="tab-info-title">Reports</span></div>
+          <div class="tab-info-desc">Flag a broken, damaged, or suspicious charging station. Reports are logged and help operators prioritise maintenance.</div>
+        </div>
         <div class="card">
           <div class="card-title">Report a station problem</div>
           <div class="form-group"><label>Station name</label><input type="text" id="rpt-station" placeholder="e.g. Scarborough Town Centre"/></div>
@@ -861,6 +943,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
 
       <!-- PROFILE -->
       <div class="panel-view" id="view-profile">
+        <div class="tab-info">
+          <div class="tab-info-row"><span class="tab-info-icon">👤</span><span class="tab-info-title">Profile</span></div>
+          <div class="tab-info-desc">Save your EV model and charge target. Sign in to sync preferences across sessions and unlock personalised range estimates.</div>
+        </div>
         <div class="card" id="profile-card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
             <div class="profile-avatar" id="profile-avatar">?</div>
@@ -1852,7 +1938,7 @@ function syncToggleStates() {
 
 // ── Grid Tools chip switcher ───────────────────────────────────────────────
 function switchGridTool(name) {
-  ['dr','fc','an','rs','st'].forEach(t => {
+  ['dr','fc','an','rs','st','bf'].forEach(t => {
     document.getElementById('gt-' + t).classList.toggle('active', t === name);
     document.getElementById('chip-' + t).classList.toggle('active', t === name);
   });
@@ -1900,8 +1986,27 @@ function renderRiskScan() {
   }).join('');
 }
 
-// ── Stress Test ────────────────────────────────────────────────────────────
-// Populate stress-test FSA select (once AREAS loaded)
+// ── Stress Test — organic growth sensitivity ───────────────────────────────
+const ST_SCENARIOS = [
+  { key:'conservative', label:'Conservative', cagr:0.20, color:'#22c55e', desc:'20%/yr' },
+  { key:'moderate',     label:'Moderate',     cagr:0.35, color:'#f59e0b', desc:'35%/yr — Ontario baseline' },
+  { key:'aggressive',   label:'Aggressive',   cagr:0.50, color:'#ef4444', desc:'50%/yr — incentive/policy push' },
+];
+
+function _stYearsToOverload(area, cagr) {
+  for (let y = 1; y <= 10; y++) {
+    const evLoad = (area.ev_count||0) * Math.pow(1+cagr, y) * (area.peak_charging_share||0.12) * (area.avg_charger_power_kw||7.2);
+    if ((area.base_load_kw + evLoad) / area.feeder_capacity_kw >= 1.0) return y;
+  }
+  return null;
+}
+
+function _stLoadAtYear(area, cagr, y) {
+  const evLoad = (area.ev_count||0) * Math.pow(1+cagr, y) * (area.peak_charging_share||0.12) * (area.avg_charger_power_kw||7.2);
+  return area.base_load_kw + evLoad;
+}
+
+let _stChart = null;
 (function() {
   const sel = document.getElementById('st-fsa');
   AREAS.forEach(a => {
@@ -1913,47 +2018,196 @@ function renderRiskScan() {
 })();
 
 function runStressTest() {
-  const fsa   = document.getElementById('st-fsa').value;
-  const extra = parseInt(document.getElementById('st-evs').value) || 50;
+  const fsa = document.getElementById('st-fsa').value;
   if (!fsa) return;
-
   const area = AREAS.find(a => a.fsa === fsa);
   if (!area) return;
 
-  const avgKw      = area.avg_charger_power_kw || 7.2;
-  const peakShare  = area.peak_charging_share  || 0.12;
-  const currentKw  = area.base_load_kw;
-  const capKw      = area.feeder_capacity_kw;
-  const extraKw    = extra * avgKw * peakShare;
-  const totalKw    = currentKw + extraKw;
-  const headroomKw = capKw - totalKw;
-  const headroomPct = (headroomKw / capKw * 100).toFixed(1);
-  const overloaded = headroomKw < 0;
+  const curYear = new Date().getFullYear();
 
-  document.getElementById('st-current-load').textContent = currentKw.toLocaleString() + ' kW';
-  document.getElementById('st-extra-load').textContent   = Math.round(extraKw).toLocaleString() + ' kW';
+  // Scenario cards
+  const results = ST_SCENARIOS.map(s => {
+    const y = _stYearsToOverload(area, s.cagr);
+    return { ...s, years: y, label2: y === null ? 'Safe 10+ yrs' : `${curYear + y}` };
+  });
 
-  const hrEl = document.getElementById('st-headroom');
-  hrEl.textContent = overloaded
-    ? `−${Math.abs(headroomPct)}% over`
-    : `${headroomPct}% left`;
-  hrEl.className = 'gt-stat-val ' + (overloaded ? 'red' : headroomPct < 10 ? 'red' : headroomPct < 20 ? '' : 'green');
+  document.getElementById('st-scenario-cards').innerHTML = results.map(r => `
+    <div style="background:#1a1d27;border:1px solid ${r.color}33;border-left:3px solid ${r.color};border-radius:8px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:12px;font-weight:700;color:#fff">${r.label} <span style="font-weight:400;color:#666;font-size:11px">${r.desc}</span></div>
+        <div style="font-size:10px;color:#555;margin-top:2px">Feeder overloads</div>
+      </div>
+      <div style="font-size:15px;font-weight:800;color:${r.color}">${r.label2}</div>
+    </div>`).join('');
 
-  const insight = document.getElementById('st-insight');
-  insight.textContent = overloaded
-    ? `Adding ${extra} EVs to ${fsa} would exceed feeder capacity by ${Math.abs(headroomKw).toFixed(0)} kW. Upgrade or demand-response required.`
-    : `Adding ${extra} EVs to ${fsa} leaves ${headroomKw.toFixed(0)} kW of headroom (${headroomPct}% of capacity).`;
-  insight.style.borderLeftColor = overloaded ? '#ef4444' : headroomPct < 20 ? '#f59e0b' : '#22c55e';
+  // Sensitivity: months between conservative and aggressive
+  const consYrs = results[0].years ?? 10;
+  const aggrYrs = results[2].years ?? 10;
+  const sensitivityMonths = (consYrs - aggrYrs) * 12;
+  const sensitivityPer10 = results[0].years && results[2].years
+    ? ((sensitivityMonths / ((0.50 - 0.20) * 100)) * 10).toFixed(1)
+    : null;
 
+  const insightEl = document.getElementById('st-insight');
+  const moderateResult = results[1];
+  if (!moderateResult.years) {
+    insightEl.textContent = `${fsa} stays within capacity across all growth scenarios for the 10-year horizon. Low sensitivity to adoption speed.`;
+    insightEl.style.borderLeftColor = '#22c55e';
+  } else {
+    insightEl.textContent = `Under moderate growth, ${fsa} overloads in ${moderateResult.label2}. ` +
+      (sensitivityPer10 ? `Sensitivity: each +10% CAGR moves the date ~${sensitivityPer10} months earlier.` : '');
+    insightEl.style.borderLeftColor = sensitivityMonths > 24 ? '#ef4444' : sensitivityMonths > 12 ? '#f59e0b' : '#22c55e';
+  }
+
+  // Warn if moderate overload within 18 months
   const warnEl = document.getElementById('st-warn');
-  if (overloaded) {
-    warnEl.textContent = `⚠ Feeder overloaded by ${Math.abs(headroomKw).toFixed(0)} kW — run DR Optimizer to flatten the curve.`;
+  if (moderateResult.years && moderateResult.years <= 2) {
+    warnEl.textContent = `⚠ Overload within ${moderateResult.years * 12} months under baseline growth — run DR Optimizer or model Buffer Impact now.`;
     warnEl.classList.add('visible');
   } else {
     warnEl.classList.remove('visible');
   }
 
   document.getElementById('st-result').style.display = 'block';
+
+  // Chart
+  const years = Array.from({length: 11}, (_, i) => i);
+  const labels = years.map(y => y === 0 ? 'Now' : `+${y}yr`);
+  const cap = years.map(() => area.feeder_capacity_kw);
+
+  const ctx = document.getElementById('st-chart').getContext('2d');
+  if (_stChart) _stChart.destroy();
+  _stChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        ...ST_SCENARIOS.map(s => ({
+          label: `${s.label} (${s.desc})`,
+          data: years.map(y => _stLoadAtYear(area, s.cagr, y)),
+          borderColor: s.color,
+          borderWidth: s.key === 'moderate' ? 2.5 : 1.5,
+          borderDash: s.key === 'moderate' ? [] : [4,3],
+          fill: false, tension: 0.3, pointRadius: 0,
+        })),
+        { label:'Feeder capacity', data:cap, borderColor:'#ef4444', borderWidth:1.5, borderDash:[6,3], fill:false, tension:0, pointRadius:0 }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ labels:{ color:'#aaa', font:{size:9}, boxWidth:10 } } },
+      scales:{
+        x:{ ticks:{ color:'#666', font:{size:9} }, grid:{ color:'#1e2535' } },
+        y:{ ticks:{ color:'#666', font:{size:9} }, grid:{ color:'#1e2535' },
+            title:{ display:true, text:'kW', color:'#666', font:{size:9} } }
+      }
+    }
+  });
+}
+
+// ── Buffer Impact ──────────────────────────────────────────────────────────
+let _bfChart = null;
+(function() {
+  const sel = document.getElementById('bf-fsa');
+  AREAS.forEach(a => {
+    const opt = document.createElement('option');
+    opt.value = a.fsa;
+    opt.textContent = (a.area && a.area !== a.fsa) ? `${a.area} (${a.fsa})` : a.fsa;
+    sel.appendChild(opt);
+  });
+})();
+
+function _bfLoadAtYear(area, cagr, y, bufferFrac, gridKw, peakKw) {
+  const bufferReduction = Math.max(0, 1 - gridKw / peakKw);
+  const evLoad = (area.ev_count||0) * Math.pow(1+cagr, y) * (area.peak_charging_share||0.12) * (area.avg_charger_power_kw||7.2);
+  return area.base_load_kw + evLoad * (1 - bufferFrac * bufferReduction);
+}
+
+function _bfYearsToOverload(area, cagr, bufferFrac, gridKw, peakKw) {
+  for (let y = 1; y <= 10; y++) {
+    if (_bfLoadAtYear(area, cagr, y, bufferFrac, gridKw, peakKw) / area.feeder_capacity_kw >= 1.0) return y;
+  }
+  return null;
+}
+
+function runBufferImpact() {
+  const fsa = document.getElementById('bf-fsa').value;
+  if (!fsa) return;
+  const area = AREAS.find(a => a.fsa === fsa);
+  if (!area) return;
+
+  const bufferFrac = parseInt(document.getElementById('bf-pct').value) / 100;
+  const gridKw     = parseFloat(document.getElementById('bf-grid-kw').value) || 50;
+  const peakKw     = parseFloat(document.getElementById('bf-peak-kw').value) || 150;
+  const cagr       = parseFloat(document.getElementById('bf-scenario').value) || 0.35;
+  const curYear    = new Date().getFullYear();
+
+  const woYrs = _bfYearsToOverload(area, cagr, 0,          gridKw, peakKw);
+  const wiYrs = _bfYearsToOverload(area, cagr, bufferFrac, gridKw, peakKw);
+
+  const woLabel = woYrs === null ? 'Safe 10+ yrs' : `${curYear + woYrs}`;
+  const wiLabel = wiYrs === null ? 'Safe 10+ yrs' : `${curYear + wiYrs}`;
+  const gained  = ((wiYrs??10) - (woYrs??10)) * 12;
+
+  const woLoad1 = _bfLoadAtYear(area, cagr, 1, 0,          gridKw, peakKw);
+  const wiLoad1 = _bfLoadAtYear(area, cagr, 1, bufferFrac, gridKw, peakKw);
+  const headroomKw  = Math.round(woLoad1 - wiLoad1);
+  const reductionPct = (headroomKw / woLoad1 * 100).toFixed(1);
+
+  document.getElementById('bf-without').textContent  = woLabel;
+  document.getElementById('bf-with').textContent     = wiLabel;
+  document.getElementById('bf-gained').textContent   = gained <= 0 ? '—' : gained >= 120 ? '10+ yrs' : `+${gained} mo`;
+  document.getElementById('bf-headroom').textContent = headroomKw + ' kW';
+  document.getElementById('bf-reduction').textContent = reductionPct + '%';
+
+  const insightEl = document.getElementById('bf-insight');
+  if (gained <= 0) {
+    insightEl.textContent = `Buffer infrastructure has minimal impact on ${fsa} — base load is the binding constraint, not EV peak demand.`;
+    insightEl.style.borderLeftColor = '#f59e0b';
+  } else if (wiYrs === null) {
+    insightEl.textContent = `With ${Math.round(bufferFrac*100)}% of stations buffered, ${fsa} stays within capacity for the full 10-year horizon — overload risk eliminated.`;
+    insightEl.style.borderLeftColor = '#22c55e';
+  } else {
+    insightEl.textContent = `Buffering ${Math.round(bufferFrac*100)}% of stations pushes ${fsa}'s overload date from ${woLabel} → ${wiLabel}, gaining ${gained} months and deferring feeder upgrade costs.`;
+    insightEl.style.borderLeftColor = '#4ea8de';
+  }
+
+  document.getElementById('bf-result').style.display = 'block';
+
+  const years  = Array.from({length:11}, (_,i) => i);
+  const labels = years.map(y => y === 0 ? 'Now' : `+${y}yr`);
+  const cap    = years.map(() => area.feeder_capacity_kw);
+
+  const ctx = document.getElementById('bf-chart').getContext('2d');
+  if (_bfChart) _bfChart.destroy();
+  _bfChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label:'Without buffers',
+          data: years.map(y => _bfLoadAtYear(area, cagr, y, 0, gridKw, peakKw)),
+          borderColor:'#f87171', borderWidth:2, borderDash:[5,3],
+          fill:false, tension:0.3, pointRadius:2, pointBackgroundColor:'#f87171' },
+        { label:`With ${Math.round(bufferFrac*100)}% buffered`,
+          data: years.map(y => _bfLoadAtYear(area, cagr, y, bufferFrac, gridKw, peakKw)),
+          borderColor:'#22c55e', backgroundColor:'rgba(34,197,94,0.08)',
+          borderWidth:2, fill:true, tension:0.3, pointRadius:2, pointBackgroundColor:'#22c55e' },
+        { label:'Feeder capacity', data:cap,
+          borderColor:'#ef4444', borderWidth:1.5, borderDash:[6,3],
+          fill:false, tension:0, pointRadius:0 },
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ labels:{ color:'#aaa', font:{size:9}, boxWidth:10 } } },
+      scales:{
+        x:{ ticks:{ color:'#666', font:{size:9} }, grid:{ color:'#1e2535' } },
+        y:{ ticks:{ color:'#666', font:{size:9} }, grid:{ color:'#1e2535' },
+            title:{ display:true, text:'kW', color:'#666', font:{size:9} } }
+      }
+    }
+  });
 }
 
 // ── Demand Response ───────────────────────────────────────────────────────
@@ -1992,25 +2246,60 @@ async function runDemandResponse() {
     data: {
       labels: d.hours,
       datasets: [
-        { label: 'Base load', data: d.base_load, backgroundColor: 'rgba(78,168,222,0.5)', stack:'s' },
-        { label: 'EV schedule', data: d.ev_schedule, backgroundColor: 'rgba(34,197,94,0.7)', stack:'s' },
-        { label: 'Unmanaged EV', data: d.unmanaged_load.map((v,i)=>v - d.base_load[i]),
-          backgroundColor: 'rgba(248,113,113,0.35)', stack:'u', borderColor:'rgba(248,113,113,0.6)', borderWidth:1 },
+        {
+          type: 'bar',
+          label: 'EV schedule',
+          data: d.ev_schedule,
+          backgroundColor: 'rgba(34,197,94,0.55)',
+          borderColor: 'rgba(34,197,94,0.9)',
+          borderWidth: 1,
+          stack: 'load',
+          order: 2,
+        },
+        {
+          type: 'bar',
+          label: 'Base load',
+          data: d.base_load,
+          backgroundColor: 'rgba(78,168,222,0.35)',
+          borderColor: 'rgba(78,168,222,0.6)',
+          borderWidth: 1,
+          stack: 'load',
+          order: 3,
+        },
+        {
+          type: 'line',
+          label: 'Without optimisation',
+          data: d.unmanaged_load,
+          borderColor: '#f87171',
+          borderWidth: 2,
+          borderDash: [5, 3],
+          fill: false,
+          tension: 0.4,
+          pointRadius: 0,
+          order: 1,
+        },
+        {
+          type: 'line',
+          label: 'Feeder capacity',
+          data: new Array(24).fill(d.feeder_capacity),
+          borderColor: '#ef4444',
+          borderWidth: 1.5,
+          borderDash: [6, 3],
+          fill: false,
+          tension: 0,
+          pointRadius: 0,
+          order: 0,
+        },
       ]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { labels: { color:'#aaa', font:{size:10} } } },
+      plugins: { legend: { labels: { color:'#aaa', font:{size:10}, boxWidth:10 } } },
       scales: {
-        x: { ticks:{ color:'#666', font:{size:9}, maxRotation:45 }, grid:{color:'#1e2535'} },
-        y: { ticks:{ color:'#666', font:{size:9} }, grid:{color:'#1e2535'},
+        x: { stacked: true, ticks:{ color:'#666', font:{size:9}, maxRotation:45 }, grid:{color:'#1e2535'} },
+        y: { stacked: true, ticks:{ color:'#666', font:{size:9} }, grid:{color:'#1e2535'},
           title:{ display:true, text:'kW', color:'#666', font:{size:9} } }
-      },
-      annotation: { annotations: [{
-        type:'line', yMin: d.feeder_capacity, yMax: d.feeder_capacity,
-        borderColor:'#ef4444', borderWidth:1.5, borderDash:[4,4],
-        label:{ content:'Capacity', enabled:true, color:'#ef4444', font:{size:9} }
-      }]}
+      }
     }
   });
 }
@@ -2038,9 +2327,7 @@ async function runForecast() {
 
   document.getElementById('fc-result').classList.add('visible');
 
-  // Sample every 3 months to keep chart readable
-  const step = 3;
-  const idx  = d.labels.map((_,i) => i).filter(i => i % step === 0);
+  const idx  = d.labels.map((_,i) => i);
   const lbl  = idx.map(i => d.labels[i]);
   const cap  = new Array(idx.length).fill(d.feeder_capacity);
 
@@ -2051,23 +2338,69 @@ async function runForecast() {
     data: {
       labels: lbl,
       datasets: [
-        { label: 'P90 band', data: idx.map(i=>d.p90[i]), fill:'+1',
-          borderColor:'transparent', backgroundColor:'rgba(239,68,68,0.15)', pointRadius:0 },
-        { label: 'High growth', data: idx.map(i=>d.high[i]),
-          borderColor:'#ef4444', borderWidth:1, borderDash:[3,3], pointRadius:0, fill:false },
-        { label: 'Moderate (baseline)', data: idx.map(i=>d.moderate[i]),
-          borderColor:'#f59e0b', borderWidth:2, pointRadius:0, fill:false },
-        { label: 'Low growth', data: idx.map(i=>d.low[i]),
-          borderColor:'#22c55e', borderWidth:1, borderDash:[3,3], pointRadius:0, fill:false },
-        { label: 'P10 band', data: idx.map(i=>d.p10[i]), fill:'-1',
-          borderColor:'transparent', backgroundColor:'rgba(34,197,94,0.1)', pointRadius:0 },
-        { label: 'Feeder capacity', data: cap,
-          borderColor:'#ef4444', borderWidth:1.5, borderDash:[5,3], pointRadius:0, fill:false },
+        {
+          label: 'P90 (upper band)',
+          data: idx.map(i=>d.p90[i]),
+          borderColor: 'rgba(239,68,68,0.3)',
+          borderWidth: 0.5,
+          backgroundColor: 'rgba(239,68,68,0.10)',
+          fill: 4,             // absolute index → P10 dataset
+          tension: 0.4,
+          pointRadius: 0,
+        },
+        {
+          label: 'High growth',
+          data: idx.map(i=>d.high[i]),
+          borderColor: '#ef4444',
+          borderWidth: 1.5,
+          borderDash: [4,3],
+          fill: false,
+          tension: 0.4,
+          pointRadius: 0,
+        },
+        {
+          label: 'Moderate (baseline)',
+          data: idx.map(i=>d.moderate[i]),
+          borderColor: '#f59e0b',
+          borderWidth: 2.5,
+          fill: false,
+          tension: 0.4,
+          pointRadius: 0,
+        },
+        {
+          label: 'Low growth',
+          data: idx.map(i=>d.low[i]),
+          borderColor: '#22c55e',
+          borderWidth: 1.5,
+          borderDash: [4,3],
+          fill: false,
+          tension: 0.4,
+          pointRadius: 0,
+        },
+        {
+          label: 'P10 (lower band)',
+          data: idx.map(i=>d.p10[i]),
+          borderColor: 'transparent',
+          backgroundColor: 'rgba(34,197,94,0.08)',
+          fill: false,
+          tension: 0.4,
+          pointRadius: 0,
+        },
+        {
+          label: 'Feeder capacity',
+          data: cap,
+          borderColor: '#ef4444',
+          borderWidth: 1.5,
+          borderDash: [6,3],
+          fill: false,
+          tension: 0,
+          pointRadius: 0,
+        },
       ]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { labels: { color:'#aaa', font:{size:9}, boxWidth:12 } } },
+      plugins: { legend: { labels: { color:'#aaa', font:{size:9}, boxWidth:10 } } },
       scales: {
         x: { ticks:{ color:'#666', font:{size:9}, maxRotation:45 }, grid:{color:'#1e2535'} },
         y: { ticks:{ color:'#666', font:{size:9} }, grid:{color:'#1e2535'},

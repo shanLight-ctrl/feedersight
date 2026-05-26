@@ -33,7 +33,7 @@ def forecast_fsa(
     feeder_capacity_kw: float,
     avg_charger_kw: float = 7.2,
     peak_share: float = 0.12,
-    horizon_months: int = 36,
+    horizon_months: int = 12,
     n_simulations: int = 200,
 ) -> dict:
     """
@@ -124,7 +124,7 @@ def forecast_fsa(
     }
 
 
-def forecast_all(areas_df, horizon_months: int = 36) -> list[dict]:
+def forecast_all(areas_df, horizon_months: int = 12) -> list[dict]:
     results = []
     for _, row in areas_df.iterrows():
         results.append(forecast_fsa(
