@@ -303,6 +303,19 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
 .gt-stat-key { font-size:9px; color:#555; text-transform:uppercase; letter-spacing:0.6px; margin-top:3px; }
 .gt-chart-wrap { background:#0d1117; border:1px solid #1e2535; border-radius:10px; padding:10px; }
 .gt-chart-label { font-size:10px; color:#555; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:6px; }
+
+/* ── Grid Tools chart popup ── */
+#gt-chart-popup { position:fixed; inset:0; z-index:9000; background:rgba(0,0,0,0.72); display:none; align-items:flex-end; }
+#gt-chart-popup.open { display:flex; }
+#gt-chart-popup-sheet { background:#1a1d27; border-radius:18px 18px 0 0; width:100%; box-shadow:0 -6px 40px rgba(0,0,0,0.7); animation:gtpop 0.24s cubic-bezier(0.32,0.72,0,1); max-height:85vh; display:flex; flex-direction:column; }
+@keyframes gtpop { from{transform:translateY(100%)} to{transform:translateY(0)} }
+#gt-chart-popup-head { display:flex; align-items:center; justify-content:space-between; padding:14px 16px 10px; border-bottom:1px solid #23273a; flex-shrink:0; }
+#gt-chart-popup-title { font-size:14px; font-weight:700; color:#e2e8f0; }
+#gt-chart-popup-close { background:none; border:1px solid #3e4460; border-radius:20px; color:#aaa; cursor:pointer; font-size:13px; padding:3px 12px; line-height:1.5; }
+#gt-chart-popup-scroll { padding:14px 16px 10px; overflow-y:auto; flex:1; }
+#gt-chart-popup-canvas-wrap { padding:0 16px 20px; flex-shrink:0; }
+#gt-chart-popup-canvas-wrap .gt-chart-label { margin-bottom:6px; }
+.gt-popup-chart-box { position:relative; height:220px; background:#0d1117; border:1px solid #1e2535; border-radius:10px; padding:10px; }
 .gt-avoid { font-size:12px; color:#f87171; margin-top:8px; padding:6px 10px; background:#2d0f0f; border-radius:6px; display:none; }
 .gt-avoid.visible { display:block; }
 /* urgency chips */
@@ -831,15 +844,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
               <option value="">— Select area —</option>
             </select>
           </div>
-          <div class="gt-result" id="st-result" style="display:none">
-            <div id="st-scenario-cards" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px"></div>
-            <div class="gt-insight" id="st-insight"></div>
-            <div class="gt-chart-wrap">
-              <div class="gt-chart-label">10-year load trajectory by growth scenario</div>
-              <canvas id="st-chart" height="130"></canvas>
-            </div>
-            <div class="gt-avoid" id="st-warn" style="margin-top:8px"></div>
-          </div>
         </div>
 
         <!-- ⑥ Buffer Impact -->
@@ -877,37 +881,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
             </select>
           </div>
 
-          <div class="gt-result" id="bf-result" style="display:none">
-            <div class="gt-insight" id="bf-insight"></div>
-            <div class="gt-stats">
-              <div class="gt-stat">
-                <div class="gt-stat-val red" id="bf-without" style="font-size:14px">—</div>
-                <div class="gt-stat-key">Without buffers</div>
-              </div>
-              <div class="gt-stat">
-                <div class="gt-stat-val green" id="bf-with" style="font-size:14px">—</div>
-                <div class="gt-stat-key">With buffers</div>
-              </div>
-              <div class="gt-stat">
-                <div class="gt-stat-val" style="color:#f59e0b" id="bf-gained">—</div>
-                <div class="gt-stat-key">Months gained</div>
-              </div>
-            </div>
-            <div class="gt-stats" style="grid-template-columns:1fr 1fr;margin-top:-6px">
-              <div class="gt-stat">
-                <div class="gt-stat-val green" id="bf-headroom" style="font-size:15px">—</div>
-                <div class="gt-stat-key">Headroom freed (kW)</div>
-              </div>
-              <div class="gt-stat">
-                <div class="gt-stat-val green" id="bf-reduction" style="font-size:15px">—</div>
-                <div class="gt-stat-key">Peak load cut</div>
-              </div>
-            </div>
-            <div class="gt-chart-wrap" style="margin-top:6px">
-              <div class="gt-chart-label">10-year load trajectory</div>
-              <canvas id="bf-chart" height="130"></canvas>
-            </div>
-          </div>
         </div>
 
       </div><!-- end view-grid -->
@@ -1986,6 +1959,10 @@ function renderRiskScan() {
   }).join('');
 }
 
+function closeGtPopup() {
+  document.getElementById('gt-chart-popup').classList.remove('open');
+}
+
 // ── Stress Test — organic growth sensitivity ───────────────────────────────
 const ST_SCENARIOS = [
   { key:'conservative', label:'Conservative', cagr:0.20, color:'#22c55e', desc:'20%/yr' },
@@ -2068,11 +2045,14 @@ function runStressTest() {
     warnEl.classList.remove('visible');
   }
 
-  const resultEl = document.getElementById('st-result');
-  resultEl.style.display = 'block';
+  // Open popup
+  document.getElementById('gt-popup-st').style.display = 'block';
+  document.getElementById('gt-popup-bf').style.display = 'none';
+  document.getElementById('gt-popup-canvas-st').style.display = 'block';
+  document.getElementById('gt-popup-canvas-bf').style.display = 'none';
+  document.getElementById('gt-chart-popup-title').textContent = `Growth Sensitivity — ${fsa}`;
+  document.getElementById('gt-chart-popup').classList.add('open');
 
-  // Defer chart creation until the browser has painted the now-visible container
-  // (canvas has 0-width inside display:none, causing Chart.js to render nothing)
   requestAnimationFrame(() => {
     const years = Array.from({length: 11}, (_, i) => i);
     const labels = years.map(y => y === 0 ? 'Now' : `+${y}yr`);
@@ -2176,7 +2156,13 @@ function runBufferImpact() {
     insightEl.style.borderLeftColor = '#4ea8de';
   }
 
-  document.getElementById('bf-result').style.display = 'block';
+  // Open popup
+  document.getElementById('gt-popup-bf').style.display = 'block';
+  document.getElementById('gt-popup-st').style.display = 'none';
+  document.getElementById('gt-popup-canvas-bf').style.display = 'block';
+  document.getElementById('gt-popup-canvas-st').style.display = 'none';
+  document.getElementById('gt-chart-popup-title').textContent = `Buffer Impact — ${fsa}`;
+  document.getElementById('gt-chart-popup').classList.add('open');
 
   requestAnimationFrame(() => {
   const years  = Array.from({length:11}, (_,i) => i);
@@ -2745,5 +2731,48 @@ function renderSimOverlay(result) {
 }
 
 </script>
+
+<!-- Grid Tools chart popup (bottom sheet) -->
+<div id="gt-chart-popup" onclick="if(event.target===this)closeGtPopup()">
+  <div id="gt-chart-popup-sheet">
+    <div id="gt-chart-popup-head">
+      <span id="gt-chart-popup-title">Analysis</span>
+      <button id="gt-chart-popup-close" onclick="closeGtPopup()">✕ Close</button>
+    </div>
+    <div id="gt-chart-popup-scroll">
+      <!-- Stress Test content -->
+      <div id="gt-popup-st" style="display:none">
+        <div id="st-scenario-cards" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px"></div>
+        <div class="gt-insight" id="st-insight"></div>
+        <div class="gt-avoid" id="st-warn" style="margin-top:8px"></div>
+      </div>
+      <!-- Buffer Impact content -->
+      <div id="gt-popup-bf" style="display:none">
+        <div class="gt-insight" id="bf-insight"></div>
+        <div class="gt-stats">
+          <div class="gt-stat"><div class="gt-stat-val red" id="bf-without" style="font-size:14px">—</div><div class="gt-stat-key">Without buffers</div></div>
+          <div class="gt-stat"><div class="gt-stat-val green" id="bf-with" style="font-size:14px">—</div><div class="gt-stat-key">With buffers</div></div>
+          <div class="gt-stat"><div class="gt-stat-val" style="color:#f59e0b" id="bf-gained">—</div><div class="gt-stat-key">Months gained</div></div>
+        </div>
+        <div class="gt-stats" style="grid-template-columns:1fr 1fr;margin-top:-6px">
+          <div class="gt-stat"><div class="gt-stat-val green" id="bf-headroom" style="font-size:15px">—</div><div class="gt-stat-key">Headroom freed (kW)</div></div>
+          <div class="gt-stat"><div class="gt-stat-val green" id="bf-reduction" style="font-size:15px">—</div><div class="gt-stat-key">Peak load cut</div></div>
+        </div>
+      </div>
+    </div>
+    <div id="gt-chart-popup-canvas-wrap">
+      <!-- Stress Test chart -->
+      <div id="gt-popup-canvas-st" style="display:none">
+        <div class="gt-chart-label">10-year load trajectory by growth scenario</div>
+        <div class="gt-popup-chart-box"><canvas id="st-chart"></canvas></div>
+      </div>
+      <!-- Buffer Impact chart -->
+      <div id="gt-popup-canvas-bf" style="display:none">
+        <div class="gt-chart-label">10-year load trajectory</div>
+        <div class="gt-popup-chart-box"><canvas id="bf-chart"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
 </body>
 </html>
