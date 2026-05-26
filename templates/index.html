@@ -62,23 +62,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
 #nav-info { font-size: 12px; color: #86efac; flex: 1; }
 #nav-dismiss { background: none; border: none; color: #555; cursor: pointer; font-size: 15px; padding: 0 4px; }
 
-/* ── Location prompt overlay ── */
-#location-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 9998; display: none; align-items: center; justify-content: center; }
-#location-overlay.visible { display: flex; }
-.location-box { background: #1a1d27; border: 1px solid #2e3147; border-radius: 14px; padding: 28px; width: 340px; text-align: center; }
-.location-box h3 { font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 6px; }
-.location-box p { font-size: 13px; color: #888; margin-bottom: 22px; line-height: 1.5; }
-.loc-option { display: flex; align-items: center; gap: 12px; background: #252836; border: 1px solid #3e4460; border-radius: 10px; padding: 13px 16px; cursor: pointer; margin-bottom: 10px; text-align: left; transition: border-color 0.15s; }
-.loc-option:hover { border-color: #4ea8de; }
-.loc-option .loc-icon { font-size: 22px; flex-shrink: 0; }
-.loc-option .loc-label { font-size: 14px; font-weight: 600; color: #fff; }
-.loc-option .loc-sub { font-size: 11px; color: #888; margin-top: 2px; }
-.loc-skip { background: none; border: none; color: #555; font-size: 12px; cursor: pointer; margin-top: 6px; }
-.loc-skip:hover { color: #888; }
-#manual-input-wrap { display: none; margin-bottom: 10px; }
-#manual-input-wrap input { width: 100%; background: #252836; border: 1px solid #3e4460; border-radius: 8px; color: #e0e0e0; padding: 10px 14px; font-size: 13px; outline: none; }
-#manual-input-wrap input:focus { border-color: #4ea8de; }
-#manual-go { margin-top: 8px; width: 100%; padding: 10px; background: #4ea8de; color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
 
 /* ── Limited AI mode badge ── */
 #limited-badge { display: none; background: #2d1f0a; border: 1px solid #78350f; border-radius: 6px; padding: 4px 10px; font-size: 11px; color: #fbbf24; margin-left: 8px; }
@@ -234,18 +217,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
 @keyframes caution-pulse { 0%,100%{opacity:0.8;transform:scale(1)} 50%{opacity:0.1;transform:scale(1.6)} }
 .caution-pin-inner { width:30px; height:30px; border-radius:50%; background:rgba(239,68,68,0.15); border:2px solid #ef4444; display:flex; align-items:center; justify-content:center; font-size:18px; z-index:1; }
 
-/* ── Role selection overlay ── */
-#role-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.88); z-index:9996; display:none; align-items:center; justify-content:center; }
-#role-overlay.visible { display:flex; }
-.role-box { background:#1a1d27; border:1px solid #2e3147; border-radius:16px; padding:36px 32px; width:440px; text-align:center; }
-.role-box h3 { font-size:22px; font-weight:700; color:#fff; margin-bottom:6px; }
-.role-box p { font-size:13px; color:#888; margin-bottom:28px; line-height:1.5; }
-.role-option { display:flex; align-items:center; gap:16px; background:#252836; border:2px solid #2e3147; border-radius:12px; padding:16px 20px; cursor:pointer; margin-bottom:12px; text-align:left; transition:border-color 0.18s, background 0.18s; }
-.role-option:hover { border-color:#4ea8de; background:#1e2535; }
-.role-option .role-icon { font-size:30px; flex-shrink:0; }
-.role-option .role-label { font-size:15px; font-weight:700; color:#fff; }
-.role-option .role-sub { font-size:12px; color:#888; margin-top:3px; line-height:1.4; }
-.role-option.utility:hover { border-color:#a78bfa; background:#1e1a35; }
 
 
 /* ── Tab info banner ── */
@@ -329,70 +300,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
 </head>
 <body>
 
-<!-- ── Location prompt ────────────────────────────────────────────────── -->
-<div id="location-overlay">
-  <div class="location-box">
-    <div style="font-size:36px;margin-bottom:10px">📍</div>
-    <h3>Where are you charging?</h3>
-    <p>FeederSight works best when it knows your location — we'll show you nearby chargers and tonight's grid conditions.</p>
-
-    <div class="loc-option" onclick="useMyLocation()">
-      <div class="loc-icon">🎯</div>
-      <div>
-        <div class="loc-label">Use my location</div>
-        <div class="loc-sub">Automatic — most accurate</div>
-      </div>
-    </div>
-
-    <div class="loc-option" id="manual-option" onclick="showManualInput()">
-      <div class="loc-icon">🏙️</div>
-      <div>
-        <div class="loc-label">Enter a neighbourhood</div>
-        <div class="loc-sub">Type Markham, Scarborough, etc.</div>
-      </div>
-    </div>
-
-    <div id="manual-input-wrap">
-      <input type="text" id="manual-location" placeholder="e.g. Markham, North York, Oakville…" onkeydown="if(event.key==='Enter') goManualLocation()"/>
-      <button id="manual-go" onclick="goManualLocation()">Find chargers here →</button>
-    </div>
-
-    <div class="loc-option" onclick="skipLocation()">
-      <div class="loc-icon">🗺️</div>
-      <div>
-        <div class="loc-label">Browse the map</div>
-        <div class="loc-sub">Skip — I'll explore on my own</div>
-      </div>
-    </div>
-
-    <button class="loc-skip" onclick="skipLocation()">Skip for now</button>
-  </div>
-</div>
-
-<!-- ── Role selection overlay ──────────────────────────────────────────── -->
-<div id="role-overlay">
-  <div class="role-box">
-    <div style="font-size:40px;margin-bottom:12px">⚡</div>
-    <h3>Who are you using FeederSight as?</h3>
-    <p>We'll tailor the map and tools to what matters most to you.</p>
-
-    <div class="role-option" onclick="selectRole('driver')">
-      <div class="role-icon">🚗</div>
-      <div>
-        <div class="role-label">EV Driver</div>
-        <div class="role-sub">Find chargers near me, check tonight's grid conditions, and plan my charge</div>
-      </div>
-    </div>
-
-    <div class="role-option utility" onclick="selectRole('utility')">
-      <div class="role-icon">🏭</div>
-      <div>
-        <div class="role-label">Grid Planner / Utilities Company</div>
-        <div class="role-sub">Analyse feeder capacity, risk forecasts, recommended build sites, and ML models</div>
-      </div>
-    </div>
-  </div>
-</div>
 
 <!-- ── Auth overlay ────────────────────────────────────────────────────── -->
 <div id="auth-overlay">
@@ -552,7 +459,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
             </div>
           </div>
           <div style="font-size:12px;color:#94a3b8;background:#131720;border-left:3px solid #22c55e;border-radius:0 6px 6px 0;padding:8px 10px;line-height:1.5" id="dca-tip"></div>
-          <button class="btn btn-primary" style="margin-top:10px;font-size:12px;padding:8px" onclick="showTab('nearby');locateMe()">📍 Find chargers near me →</button>
+          <button class="btn btn-primary" style="margin-top:10px;font-size:12px;padding:8px" onclick="showTab('nearby')">📍 Find chargers near me →</button>
         </div>
 
         <!-- Utility-only cards -->
@@ -579,7 +486,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
           <div class="tab-info-row"><span class="tab-info-icon">📍</span><span class="tab-info-title">Near Me</span></div>
           <div class="tab-info-desc">Find EV chargers close to you. Set your search radius, pick your car, and get turn-by-turn directions to the nearest available station.</div>
         </div>
-        <button class="near-btn" onclick="locateMe()">📍 Use my location</button>
 
         <!-- Guest vehicle quick-setup (session only) -->
         <div class="guest-vehicle-card" id="guest-vehicle-card" style="display:none">
@@ -929,7 +835,7 @@ let _userLat = null, _userLon = null;
 let _radius = 10;
 let _currentStation = null;
 let _navTarget = null;
-let _userRole = sessionStorage.getItem('feedersight_role') || null; // 'driver' | 'utility'
+let _userRole = 'utility'; // fixed to utility — no role selector
 
 // ── Guest session vehicle (sessionStorage — lives while tab is open) ──────
 function loadGuestSession() {
@@ -1287,20 +1193,6 @@ async function showMachinePanel(machine) {
   document.getElementById('machine-detail-content').innerHTML = html;
 }
 
-// ── Location / Near Me ────────────────────────────────────────────────────
-function locateMe() {
-  if (!navigator.geolocation) { alert('Geolocation not supported by your browser.'); return; }
-  navigator.geolocation.getCurrentPosition(pos => {
-    _userLat = pos.coords.latitude;
-    _userLon = pos.coords.longitude;
-    L.marker([_userLat,_userLon],{
-      icon:L.divIcon({html:'<div style="font-size:22px">📍</div>',className:'',iconSize:[24,24],iconAnchor:[12,24]})
-    }).addTo(map).bindTooltip('You are here');
-    map.setView([_userLat,_userLon],13);
-    renderNearby();
-    if (!layers.stations._map) layers.stations.addTo(map);
-  }, ()=>{ alert('Could not get your location. Please allow location access.'); });
-}
 
 function updateRadius(val) {
   _radius = parseFloat(val);
@@ -1484,8 +1376,6 @@ function onLoggedIn() {
     document.getElementById('battery-section').style.display='block';
   }
   if (_currentUser.charge_target) document.getElementById('profile-target').value = _currentUser.charge_target;
-  if (!_userRole) { document.getElementById('role-overlay').classList.add('visible'); return; }
-  setTimeout(showLocationPrompt, 400);
 }
 
 function continueAsGuest() {
@@ -1499,8 +1389,6 @@ function continueAsGuest() {
     if (saved.charge_target) document.getElementById('guest-target').value = saved.charge_target;
     updateGuestRange();
   }
-  if (!_userRole) { document.getElementById('role-overlay').classList.add('visible'); return; }
-  setTimeout(showLocationPrompt, 400);
 }
 
 // Ontario hourly load shape (mirrors Python demand_response.py)
@@ -1573,14 +1461,6 @@ function applyRole(role) {
   syncToggleStates();
 }
 
-function selectRole(role) {
-  _userRole = role;
-  sessionStorage.setItem('feedersight_role', role);
-  document.getElementById('role-overlay').classList.remove('visible');
-  applyRole(role);
-  showTab(role === 'utility' ? 'overview' : 'nearby');
-  setTimeout(showLocationPrompt, 400);
-}
 
 async function doLogout() {
   await fetch('/api/logout',{method:'POST'});
@@ -1636,75 +1516,12 @@ async function loadReports() {
     </div>`).join('');
 }
 
-// ── Location prompt ───────────────────────────────────────────────────────
-function showLocationPrompt() {
-  // Only show if location not already set and not dismissed this session
-  if (!sessionStorage.getItem('location_prompted')) {
-    document.getElementById('location-overlay').classList.add('visible');
-  }
-}
 
-function useMyLocation() {
-  document.getElementById('location-overlay').classList.remove('visible');
-  sessionStorage.setItem('location_prompted', '1');
-  locateMe();
-}
-
-function showManualInput() {
-  document.getElementById('manual-input-wrap').style.display = 'block';
-  document.getElementById('manual-location').focus();
-}
-
-function goManualLocation() {
-  const input = document.getElementById('manual-location').value.trim().toLowerCase();
-  if (!input) return;
-
-  // Match against area names in our data
-  let best = null, bestScore = 0;
-  AREAS.forEach(a => {
-    const areaLower = (a.area || a.fsa).toLowerCase();
-    if (areaLower.includes(input) || input.includes(areaLower.split(' ')[0])) {
-      const score = areaLower === input ? 100 : areaLower.startsWith(input) ? 50 : 10;
-      if (score > bestScore) { bestScore = score; best = a; }
-    }
-  });
-
-  // Also check city names from stations
-  if (!best) {
-    STATIONS.forEach(s => {
-      const city = (s.city || '').toLowerCase();
-      if (city && city.includes(input)) { best = {latitude: s.latitude, longitude: s.longitude, area: s.city}; }
-    });
-  }
-
-  if (best) {
-    _userLat = best.latitude; _userLon = best.longitude;
-    map.setView([_userLat, _userLon], 13);
-    L.marker([_userLat, _userLon], {
-      icon: L.divIcon({html:'<div style="font-size:22px">📍</div>', className:'', iconSize:[24,24], iconAnchor:[12,24]})
-    }).addTo(map).bindTooltip(`Showing results near: ${best.area || input}`).openTooltip();
-    renderNearby();
-    if (!layers.stations._map) layers.stations.addTo(map);
-    document.getElementById('btn-stations').classList.add('on');
-    document.getElementById('location-overlay').classList.remove('visible');
-    sessionStorage.setItem('location_prompted', '1');
-  } else {
-    document.getElementById('manual-location').style.borderColor = '#ef4444';
-    document.getElementById('manual-location').placeholder = 'Not found — try Markham, Scarborough, Oakville…';
-  }
-}
-
-function skipLocation() {
-  document.getElementById('location-overlay').classList.remove('visible');
-  sessionStorage.setItem('location_prompted', '1');
-}
-
-// On load: sync toggles, start anomaly stream, show location prompt
 window.addEventListener('load', () => {
   syncToggleStates();
   startAnomalyStream();
-  setInterval(refreshAnomalyList, 300000); // re-poll every 5 min
-  if (_userRole) { applyRole(_userRole); setTimeout(showLocationPrompt, 800); }
+  setInterval(refreshAnomalyList, 300000);
+  applyRole('utility');
 });
 
 // ── Live availability layer ───────────────────────────────────────────────
@@ -2428,18 +2245,6 @@ function showTab(name) {
   if (name==='grid') { refreshAnomalyList(); startAnomalyStream(); }
 }
 
-// ── Simulate floating panel ───────────────────────────────────────────────
-function _closestScenario() {
-  const t   = WEATHER.current_temp_c;
-  const evt = (WEATHER.current_event || '').toLowerCase();
-  if (evt.includes('blizzard') || t <= -20) return 'winter_extreme';
-  if (evt.includes('ice') || (t <= -3 && evt.includes('rain'))) return 'ice_storm';
-  if (t <= -8) return 'cold_snap';
-  if (t >= 33) return 'heat_wave';
-  if (evt.includes('wind') || WEATHER.wind_speed_kmh > 60) return 'high_wind';
-  if (evt.includes('rain') || evt.includes('storm')) return 'heavy_rain';
-  return null;
-}
 
 
 </script>
