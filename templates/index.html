@@ -310,6 +310,20 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
 .bar-track { flex: 1; background: #2e3147; border-radius: 4px; height: 12px; overflow: hidden; }
 .bar-fill { height: 100%; border-radius: 4px; transition: width 0.4s ease; }
 .bar-val { width: 38px; text-align: right; color: #ccc; font-size: 11px; flex-shrink: 0; }
+
+/* ── Simulate tab ── */
+.sim-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 4px; }
+.sim-card { background: #1a1d27; border: 1px solid #2e3147; border-radius: 10px; padding: 10px 8px; text-align: center; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+.sim-card:hover { border-color: #4ea8de; }
+.sim-card.active { background: rgba(78,168,222,0.12); border-color: #4ea8de; }
+.sim-icon { font-size: 22px; margin-bottom: 4px; }
+.sim-name { font-size: 11px; font-weight: 700; color: #e0e0e0; line-height: 1.3; }
+.sim-sub { font-size: 10px; color: #555; margin-top: 2px; }
+.sim-stat-box { background: #252836; border-radius: 8px; padding: 10px 8px; text-align: center; }
+.sim-stat-val { font-size: 18px; font-weight: 800; color: #fff; }
+.sim-stat-key { font-size: 9px; color: #555; text-transform: uppercase; letter-spacing: 0.6px; margin-top: 3px; }
+.sim-problem-item { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; color: #cbd5e1; margin-bottom: 7px; line-height: 1.5; }
+.sim-problem-dot { width: 6px; height: 6px; border-radius: 50%; background: #4ea8de; flex-shrink: 0; margin-top: 5px; }
 </style>
 </head>
 <body>
@@ -439,6 +453,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
       <div class="tab active" onclick="showTab('overview')">Overview</div>
       <div class="tab" onclick="showTab('nearby')">Near Me</div>
       <div class="tab" data-role="utility" onclick="showTab('grid')">Grid Tools</div>
+      <div class="tab" onclick="showTab('simulate')">Simulate</div>
       <div class="tab" onclick="showTab('reports')">Reports</div>
       <div class="tab" onclick="showTab('profile')">Profile</div>
     </div>
@@ -736,15 +751,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
             <input type="range" class="range-slider" id="bf-pct" min="0" max="100" value="40"
                    oninput="document.getElementById('bf-pct-val').textContent=this.value; runBufferImpact()"/>
           </div>
-          <div class="gt-row">
-            <div class="gt-field">
-              <label>Grid connection (kW)</label>
-              <input type="number" id="bf-grid-kw" value="50" min="10" max="300" onchange="runBufferImpact()"/>
-            </div>
-            <div class="gt-field">
-              <label>Station peak output (kW)</label>
-              <input type="number" id="bf-peak-kw" value="150" min="50" max="400" onchange="runBufferImpact()"/>
-            </div>
+          <div class="gt-field">
+            <label>Grid connection per station (kW)</label>
+            <input type="number" id="bf-grid-kw" value="7" min="1" max="300" onchange="runBufferImpact()"/>
           </div>
           <div class="gt-field">
             <label>Growth scenario</label>
@@ -795,6 +804,79 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
       </div><!-- end view-grid -->
 
       <!-- views for station/machine detail remain, winter/simulate/ml removed -->
+
+      <!-- SIMULATE -->
+      <div class="panel-view" id="view-simulate">
+        <div class="tab-info">
+          <div class="tab-info-row"><span class="tab-info-icon">🧪</span><span class="tab-info-title">Simulate</span></div>
+          <div class="tab-info-desc">Project EV adoption scenarios onto the GTA grid — see which FSAs overload and how many stations go offline.</div>
+        </div>
+
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:#666;margin-bottom:8px">EV adoption scenarios</div>
+        <div class="sim-grid">
+          <div class="sim-card" id="scard-organic_2030" onclick="selectScenario('organic_2030')">
+            <div class="sim-icon">📈</div>
+            <div class="sim-name">Organic Growth</div>
+            <div class="sim-sub">35%/yr → 2030</div>
+          </div>
+          <div class="sim-card" id="scard-incentive_push" onclick="selectScenario('incentive_push')">
+            <div class="sim-icon">💰</div>
+            <div class="sim-name">Rebate Push</div>
+            <div class="sim-sub">$3K incentive</div>
+          </div>
+          <div class="sim-card" id="scard-ice_penalty" onclick="selectScenario('ice_penalty')">
+            <div class="sim-icon">🚫</div>
+            <div class="sim-name">ICE Penalty</div>
+            <div class="sim-sub">Penalty → broad adoption</div>
+          </div>
+        </div>
+
+        <div id="sim-results" style="display:none;margin-top:14px">
+          <div id="sim-active-banner" style="display:flex;align-items:center;gap:8px;background:#1a2535;border:1px solid #2e4060;border-radius:8px;padding:10px 12px;margin-bottom:10px">
+            <span id="sim-banner-icon" style="font-size:22px"></span>
+            <div style="flex:1">
+              <div id="sim-banner-label" style="font-weight:700;font-size:14px;color:#fff"></div>
+              <div id="sim-banner-desc" style="font-size:11px;color:#888;margin-top:1px"></div>
+            </div>
+            <button onclick="clearSimulation()" style="background:none;border:1px solid #3e4460;border-radius:6px;color:#888;cursor:pointer;font-size:11px;padding:3px 8px">Clear</button>
+          </div>
+
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:#666;margin-bottom:6px">Grid impact</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+            <div class="sim-stat-box">
+              <div class="sim-stat-val" id="sim-overloaded">—</div>
+              <div class="sim-stat-key">FSAs overloaded</div>
+            </div>
+            <div class="sim-stat-box">
+              <div class="sim-stat-val" id="sim-delta" style="color:#f97316">—</div>
+              <div class="sim-stat-key">vs current</div>
+            </div>
+            <div class="sim-stat-box">
+              <div class="sim-stat-val" id="sim-risk-ratio">—</div>
+              <div class="sim-stat-key">mean risk ratio</div>
+            </div>
+            <div class="sim-stat-box">
+              <div class="sim-stat-val" id="sim-wfactor">—</div>
+              <div class="sim-stat-key">EV multiplier</div>
+            </div>
+          </div>
+
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:#666;margin-bottom:6px">Station impact</div>
+          <div style="margin-bottom:12px">
+            <div class="bar-row"><div class="bar-label" style="color:#22c55e">Operational</div><div class="bar-track"><div class="bar-fill" id="sim-bar-op" style="background:#22c55e;width:0%"></div></div><div class="bar-val" id="sim-cnt-op">—</div></div>
+            <div class="bar-row"><div class="bar-label" style="color:#facc15">Degraded</div><div class="bar-track"><div class="bar-fill" id="sim-bar-dg" style="background:#facc15;width:0%"></div></div><div class="bar-val" id="sim-cnt-dg">—</div></div>
+            <div class="bar-row"><div class="bar-label" style="color:#f97316">High Risk</div><div class="bar-track"><div class="bar-fill" id="sim-bar-hr" style="background:#f97316;width:0%"></div></div><div class="bar-val" id="sim-cnt-hr">—</div></div>
+            <div class="bar-row"><div class="bar-label" style="color:#9ca3af">Offline</div><div class="bar-track"><div class="bar-fill" id="sim-bar-of" style="background:#9ca3af;width:0%"></div></div><div class="bar-val" id="sim-cnt-of">—</div></div>
+          </div>
+
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:#666;margin-bottom:6px">Problems &amp; outcomes</div>
+          <div id="sim-problems"></div>
+        </div>
+
+        <div style="font-size:11px;color:#555;margin-top:12px;line-height:1.5">
+          Simulation projects each FSA's load under the chosen adoption rate. Map overlay shows simulated risk — press Clear to reset.
+        </div>
+      </div>
 
       <!-- REPORTS -->
       <div class="panel-view" id="view-reports">
@@ -917,7 +999,7 @@ function getActiveProfile() {
 const map = L.map('map', {center:[43.75,-79.45], zoom:9});
 L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/">CARTO</a>',maxZoom:19}).addTo(map);
 
-const layers = {fsa:L.layerGroup(), stations:L.layerGroup(), recommended:L.layerGroup(), anomaly:L.layerGroup(), live:L.layerGroup()};
+const layers = {fsa:L.layerGroup(), stations:L.layerGroup(), recommended:L.layerGroup(), anomaly:L.layerGroup(), live:L.layerGroup(), sim:L.layerGroup()};
 layers.fsa.addTo(map);
 layers.anomaly.addTo(map);
 
@@ -2378,15 +2460,16 @@ let _bfChart = null;
   });
 })();
 
-function _bfLoadAtYear(area, cagr, y, bufferFrac, gridKw, peakKw) {
-  const bufferReduction = Math.max(0, 1 - gridKw / peakKw);
-  const evLoad = (area.ev_count||0) * Math.pow(1+cagr, y) * (area.peak_charging_share||0.12) * (area.avg_charger_power_kw||7.2);
+function _bfLoadAtYear(area, cagr, y, bufferFrac, gridKw) {
+  const chargerKw = area.avg_charger_power_kw || 7.2;
+  const bufferReduction = Math.max(0, 1 - gridKw / chargerKw);
+  const evLoad = (area.ev_count||0) * Math.pow(1+cagr, y) * (area.peak_charging_share||0.12) * chargerKw;
   return area.base_load_kw + evLoad * (1 - bufferFrac * bufferReduction);
 }
 
-function _bfYearsToOverload(area, cagr, bufferFrac, gridKw, peakKw) {
+function _bfYearsToOverload(area, cagr, bufferFrac, gridKw) {
   for (let y = 1; y <= 10; y++) {
-    if (_bfLoadAtYear(area, cagr, y, bufferFrac, gridKw, peakKw) / area.feeder_capacity_kw >= 1.0) return y;
+    if (_bfLoadAtYear(area, cagr, y, bufferFrac, gridKw) / area.feeder_capacity_kw >= 1.0) return y;
   }
   return null;
 }
@@ -2399,7 +2482,6 @@ function runBufferImpact() {
 
   const bufferFrac = parseInt(document.getElementById('bf-pct').value) / 100;
   const gridKw     = parseFloat(document.getElementById('bf-grid-kw').value) || 50;
-  const peakKw     = parseFloat(document.getElementById('bf-peak-kw').value) || 150;
   const cagr       = parseFloat(document.getElementById('bf-scenario').value) || 0.35;
   const curYear    = new Date().getFullYear();
 
@@ -2410,8 +2492,8 @@ function runBufferImpact() {
     { label:'Aggressive',   cagr:0.50, color:'#ef4444', desc:'50%/yr' },
   ];
   document.getElementById('bf-scenario-cards').innerHTML = bfScenarios.map(s => {
-    const wo = _bfYearsToOverload(area, s.cagr, 0,          gridKw, peakKw);
-    const wi = _bfYearsToOverload(area, s.cagr, bufferFrac, gridKw, peakKw);
+    const wo = _bfYearsToOverload(area, s.cagr, 0,          gridKw);
+    const wi = _bfYearsToOverload(area, s.cagr, bufferFrac, gridKw);
     const g  = ((wi??10) - (wo??10)) * 12;
     const woLbl = wo === null ? '10+yr' : `${curYear + wo}`;
     const wiLbl = wi === null ? '10+yr' : `${curYear + wi}`;
@@ -2425,15 +2507,15 @@ function runBufferImpact() {
     </div>`;
   }).join('');
 
-  const woYrs = _bfYearsToOverload(area, cagr, 0,          gridKw, peakKw);
-  const wiYrs = _bfYearsToOverload(area, cagr, bufferFrac, gridKw, peakKw);
+  const woYrs = _bfYearsToOverload(area, cagr, 0,          gridKw);
+  const wiYrs = _bfYearsToOverload(area, cagr, bufferFrac, gridKw);
 
   const woLabel = woYrs === null ? 'Safe 10+ yrs' : `${curYear + woYrs}`;
   const wiLabel = wiYrs === null ? 'Safe 10+ yrs' : `${curYear + wiYrs}`;
   const gained  = ((wiYrs??10) - (woYrs??10)) * 12;
 
-  const woLoad1 = _bfLoadAtYear(area, cagr, 1, 0,          gridKw, peakKw);
-  const wiLoad1 = _bfLoadAtYear(area, cagr, 1, bufferFrac, gridKw, peakKw);
+  const woLoad1 = _bfLoadAtYear(area, cagr, 1, 0,          gridKw);
+  const wiLoad1 = _bfLoadAtYear(area, cagr, 1, bufferFrac, gridKw);
   const headroomKw  = Math.round(woLoad1 - wiLoad1);
   const reductionPct = (headroomKw / woLoad1 * 100).toFixed(1);
 
@@ -2477,11 +2559,11 @@ function runBufferImpact() {
       labels,
       datasets: [
         { label:'Without buffers',
-          data: years.map(y => _bfLoadAtYear(area, cagr, y, 0, gridKw, peakKw)),
+          data: years.map(y => _bfLoadAtYear(area, cagr, y, 0, gridKw)),
           borderColor:'#f87171', borderWidth:2, borderDash:[5,3],
           fill:false, tension:0.3, pointRadius:2, pointBackgroundColor:'#f87171' },
         { label:`With ${Math.round(bufferFrac*100)}% buffered`,
-          data: years.map(y => _bfLoadAtYear(area, cagr, y, bufferFrac, gridKw, peakKw)),
+          data: years.map(y => _bfLoadAtYear(area, cagr, y, bufferFrac, gridKw)),
           borderColor:'#22c55e', backgroundColor:'rgba(34,197,94,0.08)',
           borderWidth:2, fill:true, tension:0.3, pointRadius:2, pointBackgroundColor:'#22c55e' },
         { label:'Feeder capacity', data:cap,
@@ -2718,6 +2800,202 @@ async function runForecast() {
   }, 50);
 }
 
+// ── Simulate ──────────────────────────────────────────────────────────────
+const SIM_RISK_COLOR = { Safe:'#22c55e', Elevated:'#facc15', Warning:'#f97316', Overload:'#ef4444' };
+
+function _simRiskLevel(ratio) {
+  if (ratio >= 1.0)  return 'Overload';
+  if (ratio >= 0.90) return 'Warning';
+  if (ratio >= 0.75) return 'Elevated';
+  return 'Safe';
+}
+
+const SIM_SCENARIOS = {
+  organic_2030: {
+    label: 'Organic Growth → 2030',
+    icon: '📈',
+    description: '35% yearly EV adoption (current Ontario trend)',
+    ev_multiplier: 4.48,
+    weather_factor: 1.0,
+    station_base: 0.05,
+    event_boost: 0.0,
+    dc_mult: 1.0,
+    problems: [
+      'EV registrations grow ~4.5× by 2030 under current trends',
+      'Charger supply has not kept pace — gap widens fastest in low-income FSAs',
+      'Peak evening charging coincides with grid stress in suburban Peel',
+      'Utilities have a 5-year window to upgrade feeders before crisis',
+    ],
+  },
+  incentive_push: {
+    label: 'Rebate Incentive Push',
+    icon: '💰',
+    description: '$3,000 rebate adds ~60% adoption boost to middle-income areas',
+    ev_multiplier: 1.6,
+    weather_factor: 1.0,
+    station_base: 0.12,
+    event_boost: 0.0,
+    dc_mult: 1.0,
+    problems: [
+      'Adoption concentrates in middle-income suburbs with garage parking',
+      'Renter-heavy neighborhoods left behind — equity gap widens',
+      'Faster-than-expected demand on Mississauga and Markham feeders',
+      'Rebate funding should target charger access, not just car purchase',
+    ],
+  },
+  ice_penalty: {
+    label: 'ICE Penalty (2030)',
+    icon: '🚫',
+    description: 'Gas car surcharge forces broad EV adoption across all incomes',
+    ev_multiplier: 6.7,
+    weather_factor: 1.0,
+    station_base: 0.04,
+    event_boost: 0.0,
+    dc_mult: 1.0,
+    problems: [
+      'Low-income high-renter areas face worst impact — no home charging',
+      'Public charger demand spikes 2× faster than current siting plans',
+      'Grid feeders at 80%+ utilization tip into overload',
+      'Without targeted investment, charging deserts emerge by 2028',
+    ],
+  },
+};
+
+let _activeSim = null;
+
+function selectScenario(key) {
+  document.querySelectorAll('.sim-card').forEach(el => el.classList.remove('active'));
+  document.getElementById('scard-' + key).classList.add('active');
+  const result = runSimulation(key);
+  _activeSim = key;
+  renderSimOverlay(result);
+  renderSimResults(result);
+  document.getElementById('sim-results').style.display = 'block';
+
+  const grad = SCENARIO_GRADIENT[key] || HEAT_GRADIENT_NORMAL;
+  if (_heatLayer) map.removeLayer(_heatLayer);
+  const points = _buildHeatPoints(result.fsaResults, 'sim_ratio');
+  _heatLayer = _makeHeatLayer(points, grad);
+  _heatLayer.addTo(map);
+  const s = SIM_SCENARIOS[key];
+  _updateLegend(grad, `${s.icon} ${s.label} — grid stress`,
+    ['Safe', 'Elevated', 'Near Limit', 'Overloaded']);
+  document.getElementById('btn-heatmap').classList.add('on');
+  _heatOn = true;
+}
+
+function runSimulation(key) {
+  const s = SIM_SCENARIOS[key];
+  const wf = s.weather_factor;
+  const fsaResults = AREAS.map(a => {
+    const evLoad = (a.ev_count||0) * s.ev_multiplier * (a.peak_charging_share||0.12) * (a.avg_charger_power_kw||7.2) * wf;
+    const totalLoad = (a.base_load_kw||0) + evLoad;
+    const cap = a.feeder_capacity_kw || 1;
+    const sim_ratio = totalLoad / cap;
+    return { ...a, sim_ratio, sim_level: _simRiskLevel(sim_ratio) };
+  });
+  const stationResults = STATIONS.map(st => {
+    if (!st.latitude || !st.longitude) return { ...st, sim_status: 'Operational' };
+    const isDC = (st.type||'').includes('DC');
+    const mult = isDC ? s.dc_mult : 1.0;
+    const alreadyDown = (st.status||'').toLowerCase().includes('not started');
+    const prob = alreadyDown ? 1.0 : Math.min((s.station_base + s.event_boost) * mult, 0.95);
+    const sim_status = prob >= 0.55 ? 'Offline' : prob >= 0.40 ? 'High Risk' : prob >= 0.22 ? 'Degraded' : 'Operational';
+    return { ...st, sim_prob: prob, sim_status };
+  });
+  return { key, fsaResults, stationResults };
+}
+
+function renderSimOverlay(result) {
+  layers.sim.clearLayers();
+  result.fsaResults.forEach(a => {
+    if (!a.latitude || !a.longitude) return;
+    const col = SIM_RISK_COLOR[a.sim_level] || '#888';
+    const areaName = (a.area && a.area !== a.fsa) ? a.area : a.fsa;
+    L.circleMarker([a.latitude, a.longitude], {
+      radius: 11, color: '#fff', weight: 1.5, fillColor: col, fillOpacity: 0.82,
+    })
+    .bindTooltip(`[SIM] ${areaName} — ${a.sim_level} (${a.sim_ratio.toFixed(2)}×)`)
+    .bindPopup(`<div style="font-family:-apple-system,sans-serif;font-size:13px;min-width:200px">
+      <div style="font-size:11px;color:#6b7280;margin-bottom:4px">SIMULATION — ${SIM_SCENARIOS[result.key].label}</div>
+      <b style="font-size:14px">${areaName}</b>
+      <div style="font-weight:700;font-size:13px;color:${col};margin:6px 0">${a.sim_level} (${a.sim_ratio.toFixed(2)}× capacity)</div>
+      <div style="font-size:12px;color:#374151">
+        <div>Real risk today: ${(a.risk_ratio||0).toFixed(2)}×</div>
+        <div>Change: ${a.sim_ratio > (a.risk_ratio||0) ? '+' : ''}${(a.sim_ratio-(a.risk_ratio||0)).toFixed(2)}×</div>
+        <div>EVs registered: ${(a.ev_count||0).toLocaleString()}</div>
+      </div>
+    </div>`, { maxWidth: 260 })
+    .addTo(layers.sim);
+  });
+  result.stationResults.forEach(st => {
+    if (!st.latitude || !st.longitude || st.sim_status === 'Operational') return;
+    const col = st.sim_status === 'Offline' ? '#9ca3af' : st.sim_status === 'High Risk' ? '#f97316' : '#facc15';
+    L.circleMarker([st.latitude, st.longitude], {
+      radius: 5, color: '#1a1d27', weight: 1, fillColor: col, fillOpacity: 0.95,
+    })
+    .bindTooltip(`[SIM] ${st.name||'Station'} — ${st.sim_status}`)
+    .addTo(layers.sim);
+  });
+  if (!map.hasLayer(layers.sim)) layers.sim.addTo(map);
+}
+
+function renderSimResults(result) {
+  const s = SIM_SCENARIOS[result.key];
+  document.getElementById('sim-banner-icon').textContent  = s.icon;
+  document.getElementById('sim-banner-label').textContent = s.label;
+  document.getElementById('sim-banner-desc').textContent  = s.description;
+
+  const overloaded   = result.fsaResults.filter(a => a.sim_level === 'Overload').length;
+  const currentOver  = AREAS.filter(a => a.risk_level === 'Overload').length;
+  const delta        = overloaded - currentOver;
+  const avgRatio     = (result.fsaResults.reduce((sum, a) => sum + (a.sim_ratio||0), 0) / result.fsaResults.length).toFixed(2);
+
+  document.getElementById('sim-overloaded').textContent = overloaded;
+  const deltaEl = document.getElementById('sim-delta');
+  deltaEl.textContent = (delta >= 0 ? '+' : '') + delta + ' areas';
+  deltaEl.style.color = delta > 0 ? '#ef4444' : delta < 0 ? '#22c55e' : '#888';
+  document.getElementById('sim-risk-ratio').textContent = avgRatio;
+  document.getElementById('sim-wfactor').textContent    = s.ev_multiplier + '×';
+
+  const cnt = { Operational:0, Degraded:0, 'High Risk':0, Offline:0 };
+  result.stationResults.forEach(st => { if (cnt[st.sim_status] !== undefined) cnt[st.sim_status]++; });
+  const total = Object.values(cnt).reduce((a,b) => a+b, 0) || 1;
+
+  document.getElementById('sim-cnt-op').textContent = cnt['Operational'];
+  document.getElementById('sim-cnt-dg').textContent = cnt['Degraded'];
+  document.getElementById('sim-cnt-hr').textContent = cnt['High Risk'];
+  document.getElementById('sim-cnt-of').textContent = cnt['Offline'];
+  document.getElementById('sim-bar-op').style.width = (cnt['Operational']/total*100).toFixed(0) + '%';
+  document.getElementById('sim-bar-dg').style.width = (cnt['Degraded']/total*100).toFixed(0) + '%';
+  document.getElementById('sim-bar-hr').style.width = (cnt['High Risk']/total*100).toFixed(0) + '%';
+  document.getElementById('sim-bar-of').style.width = (cnt['Offline']/total*100).toFixed(0) + '%';
+
+  document.getElementById('sim-problems').innerHTML = s.problems.map(p =>
+    `<div class="sim-problem-item"><div class="sim-problem-dot"></div><div>${p}</div></div>`
+  ).join('');
+}
+
+function clearSimulation() {
+  _activeSim = null;
+  layers.sim.clearLayers();
+  if (map.hasLayer(layers.sim)) map.removeLayer(layers.sim);
+  document.querySelectorAll('.sim-card').forEach(el => el.classList.remove('active'));
+  document.getElementById('sim-results').style.display = 'none';
+  _clearFlowArrows();
+  if (_heatLayer) map.removeLayer(_heatLayer);
+  if (_heatOn) {
+    const points = _buildHeatPoints(AREAS, 'risk_ratio');
+    _heatLayer = _makeHeatLayer(points, HEAT_GRADIENT_NORMAL);
+    _heatLayer.addTo(map);
+    _updateLegend(HEAT_GRADIENT_NORMAL, 'Grid stress — risk ratio',
+      ['Safe (<0.65)', 'Elevated', 'Near Limit', 'Overloaded (>1.0)']);
+  } else {
+    document.getElementById('heatmap-legend').classList.remove('visible');
+    document.getElementById('btn-heatmap').classList.remove('on');
+  }
+}
+
 // ── Live Anomaly Intelligence ──────────────────────────────────────────────
 let _anomalySSE = null;
 function startAnomalyStream() {
@@ -2802,18 +3080,19 @@ function locateUser(silent) {
 }
 
 // ── Tab switching ─────────────────────────────────────────────────────────
-const TAB_VIEWS = ['overview','nearby','grid','station','machine','reports','profile'];
+const TAB_VIEWS = ['overview','nearby','grid','simulate','station','machine','reports','profile'];
 function showTab(name) {
   TAB_VIEWS.forEach(t=>{
     const el = document.getElementById(`view-${t}`);
     if (el) el.classList.toggle('active', t===name);
   });
   document.querySelectorAll('#panel-tabs .tab').forEach((el,i)=>{
-    el.classList.toggle('active',['overview','nearby','grid','reports','profile'][i]===name);
+    el.classList.toggle('active',['overview','nearby','grid','simulate','reports','profile'][i]===name);
   });
   if (name==='reports') loadReports();
   if (name==='grid') { refreshAnomalyList(); startAnomalyStream(); }
   if (name==='nearby' && !_userLat) locateUser();
+  if (name!=='simulate' && _activeSim) clearSimulation();
 }
 
 
