@@ -618,29 +618,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
             </div>
           </div>
           <button class="gt-btn gt-btn-blue" onclick="runDemandResponse()">Optimise Charging Schedule →</button>
-
-          <div class="gt-result" id="dr-result">
-            <div class="gt-insight" id="dr-summary"></div>
-            <div class="gt-stats">
-              <div class="gt-stat">
-                <div class="gt-stat-val" id="dr-peak-managed">—</div>
-                <div class="gt-stat-key">Managed peak (kW)</div>
-              </div>
-              <div class="gt-stat">
-                <div class="gt-stat-val" id="dr-peak-unmanaged">—</div>
-                <div class="gt-stat-key">Unmanaged peak (kW)</div>
-              </div>
-              <div class="gt-stat">
-                <div class="gt-stat-val green" id="dr-reduction">—</div>
-                <div class="gt-stat-key">Peak reduction</div>
-              </div>
-            </div>
-            <div class="gt-chart-wrap">
-              <div class="gt-chart-label">24-hour load curve</div>
-              <canvas id="dr-chart" height="120"></canvas>
-            </div>
-            <div class="gt-avoid" id="dr-avoid"></div>
-          </div>
         </div>
 
         <!-- ② Feeder Forecast -->
@@ -650,24 +627,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
             <select id="fc-fsa"><option value="">— Select area —</option></select>
           </div>
           <button class="gt-btn gt-btn-purple" onclick="runForecast()">Generate Forecast →</button>
-
-          <div class="gt-result" id="fc-result">
-            <div class="gt-insight purple" id="fc-summary"></div>
-            <div class="gt-stats" style="grid-template-columns:1fr 1fr">
-              <div class="gt-stat">
-                <div class="gt-stat-val red" id="fc-overload-date" style="font-size:13px">—</div>
-                <div class="gt-stat-key">Overload date</div>
-              </div>
-              <div class="gt-stat">
-                <div class="gt-stat-val" id="fc-current-ratio">—</div>
-                <div class="gt-stat-key">Current load ratio</div>
-              </div>
-            </div>
-            <div class="gt-chart-wrap">
-              <div class="gt-chart-label">12-month projection</div>
-              <canvas id="fc-chart" height="120"></canvas>
-            </div>
-          </div>
         </div>
 
         <!-- ③ Live Anomalies -->
@@ -1688,6 +1647,7 @@ function syncToggleStates() {
 
 // ── Grid Tools chip switcher ───────────────────────────────────────────────
 function switchGridTool(name) {
+  closeGtPopup();
   ['dr','fc','an','rs','st','bf'].forEach(t => {
     document.getElementById('gt-' + t).classList.toggle('active', t === name);
     document.getElementById('chip-' + t).classList.toggle('active', t === name);
@@ -2016,8 +1976,15 @@ async function runDemandResponse() {
     avoidEl.classList.remove('visible');
   }
 
-  document.getElementById('dr-result').classList.add('visible');
+  // Open popup
+  ['gt-popup-dr','gt-popup-fc','gt-popup-st','gt-popup-bf'].forEach(id => document.getElementById(id).style.display='none');
+  ['gt-popup-canvas-dr','gt-popup-canvas-fc','gt-popup-canvas-st','gt-popup-canvas-bf'].forEach(id => document.getElementById(id).style.display='none');
+  document.getElementById('gt-popup-dr').style.display = 'block';
+  document.getElementById('gt-popup-canvas-dr').style.display = 'block';
+  document.getElementById('gt-chart-popup-title').textContent = `DR Optimiser — ${document.getElementById('dr-fsa').value || 'All'}`;
+  document.getElementById('gt-chart-popup').classList.add('open');
 
+  setTimeout(() => {
   const ctx = document.getElementById('dr-chart').getContext('2d');
   if (_drChart) _drChart.destroy();
   _drChart = new Chart(ctx, {
@@ -2081,6 +2048,7 @@ async function runDemandResponse() {
       }
     }
   });
+  }, 50);
 }
 
 // ── Feeder Forecast ───────────────────────────────────────────────────────
@@ -2104,8 +2072,15 @@ async function runForecast() {
   document.getElementById('fc-overload-date').textContent = d.overload_date_moderate;
   document.getElementById('fc-current-ratio').textContent = (d.current_ratio * 100).toFixed(0) + '%';
 
-  document.getElementById('fc-result').classList.add('visible');
+  // Open popup
+  ['gt-popup-dr','gt-popup-fc','gt-popup-st','gt-popup-bf'].forEach(id => document.getElementById(id).style.display='none');
+  ['gt-popup-canvas-dr','gt-popup-canvas-fc','gt-popup-canvas-st','gt-popup-canvas-bf'].forEach(id => document.getElementById(id).style.display='none');
+  document.getElementById('gt-popup-fc').style.display = 'block';
+  document.getElementById('gt-popup-canvas-fc').style.display = 'block';
+  document.getElementById('gt-chart-popup-title').textContent = `Feeder Forecast — ${fsa}`;
+  document.getElementById('gt-chart-popup').classList.add('open');
 
+  setTimeout(() => {
   const idx  = d.labels.map((_,i) => i);
   const lbl  = idx.map(i => d.labels[i]);
   const cap  = new Array(idx.length).fill(d.feeder_capacity);
@@ -2187,6 +2162,7 @@ async function runForecast() {
       }
     }
   });
+  }, 50);
 }
 
 // ── Live Anomaly Intelligence ──────────────────────────────────────────────
@@ -2257,6 +2233,24 @@ function showTab(name) {
       <button id="gt-chart-popup-close" onclick="closeGtPopup()">✕ Close</button>
     </div>
     <div id="gt-chart-popup-scroll">
+      <!-- DR Optimizer content -->
+      <div id="gt-popup-dr" style="display:none">
+        <div class="gt-insight" id="dr-summary"></div>
+        <div class="gt-stats">
+          <div class="gt-stat"><div class="gt-stat-val" id="dr-peak-managed">—</div><div class="gt-stat-key">Managed peak (kW)</div></div>
+          <div class="gt-stat"><div class="gt-stat-val" id="dr-peak-unmanaged">—</div><div class="gt-stat-key">Unmanaged peak (kW)</div></div>
+          <div class="gt-stat"><div class="gt-stat-val green" id="dr-reduction">—</div><div class="gt-stat-key">Peak reduction</div></div>
+        </div>
+        <div class="gt-avoid" id="dr-avoid"></div>
+      </div>
+      <!-- Forecast content -->
+      <div id="gt-popup-fc" style="display:none">
+        <div class="gt-insight purple" id="fc-summary"></div>
+        <div class="gt-stats" style="grid-template-columns:1fr 1fr">
+          <div class="gt-stat"><div class="gt-stat-val red" id="fc-overload-date" style="font-size:13px">—</div><div class="gt-stat-key">Overload date</div></div>
+          <div class="gt-stat"><div class="gt-stat-val" id="fc-current-ratio">—</div><div class="gt-stat-key">Current load ratio</div></div>
+        </div>
+      </div>
       <!-- Stress Test content -->
       <div id="gt-popup-st" style="display:none">
         <div id="st-scenario-cards" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px"></div>
@@ -2278,6 +2272,16 @@ function showTab(name) {
       </div>
     </div>
     <div id="gt-chart-popup-canvas-wrap">
+      <!-- DR Optimizer chart -->
+      <div id="gt-popup-canvas-dr" style="display:none">
+        <div class="gt-chart-label">24-hour load curve</div>
+        <div class="gt-popup-chart-box"><canvas id="dr-chart"></canvas></div>
+      </div>
+      <!-- Forecast chart -->
+      <div id="gt-popup-canvas-fc" style="display:none">
+        <div class="gt-chart-label">12-month projection</div>
+        <div class="gt-popup-chart-box"><canvas id="fc-chart"></canvas></div>
+      </div>
       <!-- Stress Test chart -->
       <div id="gt-popup-canvas-st" style="display:none">
         <div class="gt-chart-label">10-year load trajectory by growth scenario</div>
