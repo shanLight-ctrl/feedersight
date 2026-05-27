@@ -270,9 +270,23 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
 #gt-chart-popup-scroll { padding:14px 16px 10px; overflow-y:auto; flex:1; }
 #gt-chart-popup-canvas-wrap { padding:0 16px 20px; flex-shrink:0; }
 #gt-chart-popup-canvas-wrap .gt-chart-label { margin-bottom:6px; }
-.gt-popup-chart-box { position:relative; height:220px; overflow:hidden; background:#0d1117; border:1px solid #1e2535; border-radius:10px; padding:10px; }
+.gt-popup-chart-box { position:relative; height:300px; overflow:hidden; background:#0d1117; border:1px solid #1e2535; border-radius:10px; padding:10px; }
+#gt-chart-popup-min { background:none; border:1px solid #3e4460; border-radius:20px; color:#aaa; cursor:pointer; font-size:13px; padding:3px 12px; line-height:1.5; }
+#gt-chart-popup-sheet.minimized > #gt-chart-popup-scroll,
+#gt-chart-popup-sheet.minimized > #gt-chart-popup-canvas-wrap { display:none !important; }
+#gt-chart-popup-sheet.minimized { border-radius:18px; }
+#gt-chart-popup.gt-popup-minimized { background:transparent; pointer-events:none; align-items:flex-end; justify-content:flex-end; }
+#gt-chart-popup.gt-popup-minimized #gt-chart-popup-sheet { pointer-events:auto; width:340px; border-radius:12px 12px 0 0; margin:0 16px; }
 .gt-avoid { font-size:12px; color:#f87171; margin-top:8px; padding:6px 10px; background:#2d0f0f; border-radius:6px; display:none; }
 .gt-avoid.visible { display:block; }
+
+/* ── Equity layer ── */
+.eq-row { display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid #1e2535; font-size:12px; }
+.eq-row:last-child { border-bottom:none; }
+#planner-alert-panel { position:fixed; right:0; top:52px; width:330px; background:#1a1d27; border-left:1px solid #2e3147; height:calc(100vh - 52px); z-index:1500; transform:translateX(100%); transition:transform 0.25s cubic-bezier(0.32,0.72,0,1); display:flex; flex-direction:column; box-shadow:-4px 0 24px rgba(0,0,0,0.5); }
+#planner-alert-panel.open { transform:translateX(0); }
+#planner-alert-head { display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid #2e3147; flex-shrink:0; background:#1a1d27; }
+#planner-alert-list { flex:1; overflow-y:auto; padding:12px 14px; }
 /* urgency chips */
 .urg-chip { display:inline-block; font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; vertical-align:middle; margin-left:6px; }
 .urg-critical { background:#7f1d1d; color:#fca5a5; }
@@ -413,6 +427,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
       <button class="map-toggle-btn" id="btn-live" onclick="toggleLive()">
         <span class="tog-dot"></span>🔴 Live availability
       </button>
+      <button class="map-toggle-btn" data-role="utility" id="btn-equity" onclick="toggleEquityLayer()">
+        <span class="tog-dot"></span>⚖️ Equity layer
+      </button>
     </div>
   </div>
 
@@ -478,6 +495,28 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
           <div class="urgency-row"><span class="urg-dot dot-orange"></span><span class="urg-label">High Risk</span><span class="urg-count" id="s2">—</span></div>
           <div class="urgency-row"><span class="urg-dot" style="background:#9ca3af"></span><span class="urg-label">Offline</span><span class="urg-count" id="s3">—</span></div>
         </div>
+
+        <!-- Grid Equity Watch -->
+        <div class="card" data-role="utility" id="equity-watch-card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <div class="card-title" style="margin:0">⚖️ Grid Equity Watch</div>
+            <button id="planner-alert-btn" onclick="openPlannerAlert()" style="background:#ef4444;color:#fff;border:none;border-radius:12px;font-size:11px;font-weight:700;padding:3px 10px;cursor:pointer">— alerts</button>
+          </div>
+          <div id="eq-system-badge" style="font-size:11px;font-weight:700;border-radius:6px;border:1px solid;padding:5px 10px;text-align:center;margin-bottom:10px">—</div>
+          <div id="eq-tier-bar" style="display:flex;height:6px;border-radius:3px;overflow:hidden;margin-bottom:10px;background:#1e2535"></div>
+          <div class="urgency-row"><span class="urg-dot" style="background:#ef4444"></span><span class="urg-label">Exceeds 85% limit now</span><span class="urg-count" id="eq-overloaded">—</span></div>
+          <div class="urgency-row"><span class="urg-dot" style="background:#f97316"></span><span class="urg-label">Hits limit within 2yr</span><span class="urg-count" id="eq-critical">—</span></div>
+          <div class="urgency-row"><span class="urg-dot" style="background:#eab308"></span><span class="urg-label">Monitor — limit 3–5yr</span><span class="urg-count" id="eq-atrisk">—</span></div>
+          <div class="urgency-row"><span class="urg-dot" style="background:#22c55e"></span><span class="urg-label">Healthy headroom 5+yr</span><span class="urg-count" id="eq-safe">—</span></div>
+          <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+            <button onclick="toggleEquityLayer()" style="flex:1;min-width:0;background:#23273a;color:#aaa;border:1px solid #3e4460;border-radius:8px;padding:6px 8px;font-size:11px;font-weight:600;cursor:pointer">⚖️ Equity map</button>
+            <button onclick="openPlannerAlert()" style="flex:1;min-width:0;background:#23273a;color:#f97316;border:1px solid #f9731655;border-radius:8px;padding:6px 8px;font-size:11px;font-weight:600;cursor:pointer">📋 Plan alerts</button>
+          </div>
+          <div style="margin-top:10px;padding-top:10px;border-top:1px solid #1e2535">
+            <div style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Fastest deteriorating</div>
+            <div id="eq-worst-list"></div>
+          </div>
+        </div>
       </div>
 
       <!-- NEAR ME -->
@@ -527,7 +566,13 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
             <div style="font-size:11px;color:#666">Based on your car profile</div>
           </div>
         </div>
-        <div id="nearby-list"><div style="color:#666;font-size:13px;text-align:center;padding:20px">Press "Use my location" to find chargers near you</div></div>
+        <div id="locate-btn-wrap" style="margin-bottom:12px;text-align:center">
+          <button id="locate-btn" onclick="locateUser()" style="background:#22c55e;color:#fff;border:none;border-radius:20px;padding:9px 22px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:7px;margin:0 auto">
+            <span>📍</span> Use my location
+          </button>
+          <div id="locate-status" style="font-size:11px;color:#666;margin-top:6px"></div>
+        </div>
+        <div id="nearby-list"><div style="color:#666;font-size:13px;text-align:center;padding:20px">Allow location access to find chargers near you.</div></div>
       </div>
 
       <!-- STATION DETAIL (injected dynamically) -->
@@ -584,6 +629,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
           <div class="gt-chip" style="--chip-color:#f59e0b" id="chip-bf" onclick="switchGridTool('bf')">
             <div class="gt-chip-icon">🔋</div>
             <div class="gt-chip-label">BUFFER</div>
+          </div>
+          <div class="gt-chip" style="--chip-color:#a855f7" id="chip-ps" onclick="switchGridTool('ps')">
+            <div class="gt-chip-icon">🏛️</div>
+            <div class="gt-chip-label">POLICY</div>
           </div>
           <div class="gt-chip" style="--chip-color:#6b7280;min-width:unset;flex:0 0 auto;padding:8px 14px" onclick="clearGridTools()">
             <div class="gt-chip-icon" style="font-size:14px">✕</div>
@@ -706,6 +755,41 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
             </select>
           </div>
 
+        </div>
+
+        <!-- ⑦ Policy Scenario -->
+        <div class="gt-tool" id="gt-ps">
+          <div style="font-size:11px;color:#555;margin-bottom:10px;letter-spacing:0.3px">
+            Province-wide levers — see how rebate programs and ICE penalties shift EV adoption and push FSAs across risk tiers.
+          </div>
+          <div class="gt-field">
+            <label>Rebate program strength: <span id="ps-rebate-val">50</span>%</label>
+            <input type="range" class="range-slider" id="ps-rebate" min="0" max="100" value="50"
+                   oninput="document.getElementById('ps-rebate-val').textContent=this.value; runPolicyScenario()"/>
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:#555;margin-top:2px">
+              <span>No rebate</span><span>Full rebate program</span>
+            </div>
+          </div>
+          <div class="gt-field">
+            <label>ICE penalty / carbon price: <span id="ps-penalty-val">50</span>%</label>
+            <input type="range" class="range-slider" id="ps-penalty" min="0" max="100" value="50"
+                   oninput="document.getElementById('ps-penalty-val').textContent=this.value; runPolicyScenario()"/>
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:#555;margin-top:2px">
+              <span>No penalty</span><span>Strong carbon price</span>
+            </div>
+          </div>
+          <div class="gt-field">
+            <label>Adoption elasticity <span style="color:#555;font-size:10px">(your assumption)</span></label>
+            <select id="ps-elasticity" onchange="runPolicyScenario()">
+              <option value="0.5">Low — Ontario market is price-inelastic</option>
+              <option value="1.0" selected>Medium — moderate response (default)</option>
+              <option value="1.5">High — strong market response to policy</option>
+            </select>
+          </div>
+          <div style="font-size:10px;color:#444;padding:7px 10px;background:#131720;border-radius:6px;margin-bottom:10px;line-height:1.5">
+            Effect sizes are user-defined assumptions — not empirically measured for Ontario FSAs. Results show directional grid impact, not precise predictions.
+          </div>
+          <button class="gt-btn" style="background:#a855f7;color:#fff" onclick="runPolicyScenario()">Run Scenario →</button>
         </div>
 
       </div><!-- end view-grid -->
@@ -936,6 +1020,7 @@ function _clearFlowArrows() {
 }
 
 // FSA dots — area name first, FSA code as small tag
+const fsaMarkers = {};
 const urgCounts = {};
 AREAS.forEach(a => {
   const urg = a.forecast_urgency || "Safe 10+ Years";
@@ -958,7 +1043,7 @@ AREAS.forEach(a => {
     ? `⚡ ${a.rate_limit_label}` : `✅ Full charging speed available`;
   const uid = 'fsa_'+a.fsa;
 
-  L.circleMarker([a.latitude,a.longitude],{radius:8,color,fillColor:color,fillOpacity:0.7,weight:1})
+  const _fm = L.circleMarker([a.latitude,a.longitude],{radius:8,color,fillColor:color,fillOpacity:0.7,weight:1})
     .bindTooltip(`${areaName} | ${urg}`)
     .bindPopup(`<div style="font-family:-apple-system,sans-serif;font-size:13px;min-width:220px">
       <div style="margin-bottom:6px"><b style="font-size:15px">${areaName}</b>${fsaTag}</div>
@@ -978,6 +1063,7 @@ AREAS.forEach(a => {
       </div>
     </div>`,{maxWidth:300})
     .addTo(layers.fsa);
+  fsaMarkers[a.fsa] = { marker: _fm, area: a };
 });
 ["Overloaded Now","1-2 Years","3-5 Years","6-10 Years","Safe 10+ Years"].forEach((k,i)=>{
   const el=document.getElementById(`u${i}`); if(el) el.textContent=urgCounts[k]||0;
@@ -1200,6 +1286,40 @@ async function renderNearby() {
   }).join('');
 }
 
+// ── Location detection from natural language ──────────────────────────────
+function detectAreaFromQuery(q) {
+  const up = q.toUpperCase();
+  // FSA code: letter-digit-letter (e.g. L3R, M5V)
+  const fsaMatch = q.match(/\b([A-Z]\d[A-Z])\b/i);
+  if (fsaMatch) {
+    const hit = AREAS.find(a => a.fsa === fsaMatch[1].toUpperCase());
+    if (hit) return hit;
+  }
+  // Area / city name — longest match wins to avoid partial overlaps
+  const sorted = AREAS.filter(a => a.area && a.area !== a.fsa)
+                       .sort((a,b) => b.area.length - a.area.length);
+  return sorted.find(a => up.includes(a.area.toUpperCase())) || null;
+}
+
+function focusArea(area) {
+  map.flyTo([area.latitude, area.longitude], 13, {duration:1.1});
+  layers.fsa.eachLayer(l => { if (l.isPopupOpen && l.isPopupOpen()) l.closePopup(); });
+  const entry = fsaMarkers[area.fsa];
+  if (entry) setTimeout(() => entry.marker.openPopup(), 1200);
+  // Pre-fill FSA selectors in Grid Tools
+  ['dr-fsa','fc-fsa','st-fsa','bf-fsa'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = area.fsa;
+  });
+}
+
+function areaStatLine(a) {
+  const pct = ((a.risk_ratio||0)*100).toFixed(0);
+  const status = (a.risk_ratio||0) >= 1.0 ? 'Overloaded' : (a.risk_ratio||0) >= 0.9 ? 'Near limit' : (a.risk_ratio||0) >= 0.75 ? 'Elevated' : 'Healthy';
+  const yr3 = (a.risk_moderate_3yr||0) >= 1.0 ? 'overload by 3yr' : 'safe 3yr';
+  return `${a.area||a.fsa} (${a.fsa}) — grid ${status} at ${pct}% capacity · ${(a.ev_count||0).toLocaleString()} EVs · ${yr3}`;
+}
+
 // ── AI assistant ──────────────────────────────────────────────────────────
 async function askQuestion() {
   const input = document.getElementById('ask-input');
@@ -1210,6 +1330,20 @@ async function askQuestion() {
   document.getElementById('nav-btn-wrap').classList.remove('visible');
   document.getElementById('ask-loading').classList.add('visible');
 
+  // "near me" / "nearby" — trigger geolocation if not yet set
+  const nearMeQuery = /\bnear\s*me\b|\bnearby\b|\bclose\s*to\s*me\b/i.test(q);
+  if (nearMeQuery && !_userLat) {
+    locateUser();
+    document.getElementById('ask-answer-text').textContent = 'Getting your location — results will appear once located.';
+    document.getElementById('ask-answer').classList.add('visible');
+    document.getElementById('ask-loading').classList.remove('visible');
+    return;
+  }
+
+  // Immediately detect + focus any mentioned area — no API wait needed
+  const detectedArea = nearMeQuery ? null : detectAreaFromQuery(q);
+  if (detectedArea) focusArea(detectedArea);
+
   // Include guest profile in request if available
   const profile = getActiveProfile();
   const body = {question:q, lat:_userLat, lon:_userLon, radius:_radius};
@@ -1219,7 +1353,9 @@ async function askQuestion() {
   try {
     const res = await fetch('/api/ask',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const data = await res.json();
-    document.getElementById('ask-answer-text').textContent = data.answer;
+    // If an area was detected, prefix the answer with live area stats
+    const prefix = detectedArea ? areaStatLine(detectedArea) + '\n\n' : '';
+    document.getElementById('ask-answer-text').textContent = prefix + data.answer;
     document.getElementById('ask-answer').classList.add('visible');
     document.getElementById('limited-badge').style.display = data.limited_mode ? 'inline-block' : 'none';
 
@@ -1232,7 +1368,9 @@ async function askQuestion() {
       document.getElementById('nav-btn-wrap').classList.add('visible');
     }
   } catch(e) {
-    document.getElementById('ask-answer-text').textContent = 'Could not reach AI assistant.';
+    // Even if API fails, show area stats if we detected one
+    const fallback = detectedArea ? areaStatLine(detectedArea) : 'Could not reach AI assistant.';
+    document.getElementById('ask-answer-text').textContent = fallback;
     document.getElementById('ask-answer').classList.add('visible');
   }
   document.getElementById('ask-loading').classList.remove('visible');
@@ -1476,11 +1614,336 @@ async function loadReports() {
 }
 
 
+// ── Equity Layer ──────────────────────────────────────────────────────────
+// Threshold: 85% utilization — the N-1 contingency planning limit used by utilities.
+// Above this, a feeder cannot absorb a single component failure safely.
+// We never say "overloaded at 100%" — that's an estimate. 85% is the real trigger.
+const EQ_PLAN_THRESHOLD = 0.85;
+const EQUITY_TIER_COLOR = { urgent:'#ef4444', plan:'#f97316', monitor:'#eab308', healthy:'#22c55e' };
+
+function _yearsToThreshold(area, cagr, threshold) {
+  for (let y = 1; y <= 10; y++) {
+    const evLoad = (area.ev_count||0) * Math.pow(1+cagr, y) * (area.peak_charging_share||0.12) * (area.avg_charger_power_kw||7.2);
+    if ((area.base_load_kw + evLoad) / (area.feeder_capacity_kw||1) >= threshold) return y;
+  }
+  return null;
+}
+
+function computeEquityDataCagr(cagr) {
+  return AREAS.map(a => {
+    const yearsToLimit  = _yearsToThreshold(a, cagr, EQ_PLAN_THRESHOLD);
+    const currentRatio  = (a.risk_ratio||0);
+    const trajectory    = (a.risk_moderate_3yr||0) - currentRatio;
+    const limitKw       = (a.feeder_capacity_kw||0) * EQ_PLAN_THRESHOLD;
+    const headroomToLimit = Math.round(limitKw - (a.base_load_kw||0));
+    const tier = currentRatio >= EQ_PLAN_THRESHOLD ? 'urgent'
+      : yearsToLimit !== null && yearsToLimit <= 2  ? 'plan'
+      : yearsToLimit !== null && yearsToLimit <= 5  ? 'monitor'
+      : 'healthy';
+    return {...a, yearsToLimit, trajectory, tier, headroomToLimit, currentRatio};
+  }).sort((a, b) => (a.yearsToLimit ?? 99) - (b.yearsToLimit ?? 99));
+}
+
+function computeEquityData() {
+  return computeEquityDataCagr(0.35);
+}
+
+function renderEquityCard() {
+  const data = computeEquityData();
+  const counts = {urgent:0, plan:0, monitor:0, healthy:0};
+  data.forEach(a => counts[a.tier]++);
+
+  document.getElementById('eq-overloaded').textContent = counts.urgent;
+  document.getElementById('eq-critical').textContent   = counts.plan;
+  document.getElementById('eq-atrisk').textContent     = counts.monitor;
+  document.getElementById('eq-safe').textContent       = counts.healthy;
+
+  const alertCount = counts.urgent + counts.plan;
+  const alertBtn = document.getElementById('planner-alert-btn');
+  alertBtn.textContent = `${alertCount} alert${alertCount !== 1 ? 's' : ''}`;
+  alertBtn.style.background = alertCount > 0 ? '#ef4444' : '#22c55e';
+
+  // Proportional tier bar
+  document.getElementById('eq-tier-bar').innerHTML =
+    ['urgent','plan','monitor','healthy'].map(k =>
+      `<div style="flex:${counts[k]};background:${EQUITY_TIER_COLOR[k]};min-width:${counts[k]?2:0}px"></div>`
+    ).join('');
+
+  // Worst 5 by trajectory (fastest deteriorating headroom to 85% limit)
+  const curYr = new Date().getFullYear();
+  const worst = [...data].sort((a,b) => b.trajectory - a.trajectory).slice(0, 5);
+  document.getElementById('eq-worst-list').innerHTML = worst.map(a => {
+    const c = EQUITY_TIER_COLOR[a.tier];
+    const yr = a.yearsToLimit ? curYr + a.yearsToLimit : null;
+    return `<div class="eq-row">
+      <span style="width:8px;height:8px;border-radius:50%;background:${c};flex-shrink:0;display:inline-block"></span>
+      <span style="flex:1;color:#e0e0e0">${a.area||a.fsa} <span style="color:#555;font-size:10px">${a.fsa}</span></span>
+      <span style="color:${c};font-weight:700;font-size:11px;margin-right:4px">${yr ? yr : 'Healthy'}</span>
+      <span style="font-size:10px;color:#666">+${((a.trajectory||0)*100).toFixed(0)}%</span>
+    </div>`;
+  }).join('');
+
+  // Overall system health badge
+  const systemBadge = document.getElementById('eq-system-badge');
+  if (systemBadge) {
+    const { label, color, bg } = counts.urgent > 0
+      ? { label:'System Under Stress', color:'#ef4444', bg:'#2d0f0f' }
+      : counts.plan > 3
+      ? { label:'Upgrade Planning Needed', color:'#f97316', bg:'#2d1400' }
+      : counts.monitor > 5
+      ? { label:'Monitor Closely', color:'#eab308', bg:'#2d2000' }
+      : { label:'System Healthy', color:'#22c55e', bg:'#0f2d1a' };
+    systemBadge.textContent = label;
+    systemBadge.style.color = color;
+    systemBadge.style.background = bg;
+    systemBadge.style.borderColor = color + '55';
+  }
+}
+
+let _equityOn = false;
+const _equityLayer = L.layerGroup();
+
+function _refreshEquityLayer(cagr) {
+  _equityLayer.clearLayers();
+  const curYr = new Date().getFullYear();
+  computeEquityDataCagr(cagr).forEach(a => {
+    const color = EQUITY_TIER_COLOR[a.tier];
+    const radius = Math.max(5, Math.min(15, 5 + (a.trajectory||0) * 22));
+    const tierLabel = {
+      urgent: 'Exceeds 85% planning limit',
+      plan: `Hits limit ~${curYr + a.yearsToLimit}`,
+      monitor: `Monitor — limit ~${curYr + (a.yearsToLimit||5)}`,
+      healthy: 'Healthy headroom'
+    }[a.tier];
+    L.circleMarker([a.latitude, a.longitude], {
+      radius, color, fillColor: color, fillOpacity: 0.75, weight: 2
+    })
+    .bindTooltip(
+      `<b>${a.area||a.fsa}</b> (${a.fsa})<br>${tierLabel}<br>` +
+      `Current load: ${((a.currentRatio||0)*100).toFixed(0)}% · Headroom to 85%: ${a.headroomToLimit} kW`,
+      {sticky: true}
+    )
+    .addTo(_equityLayer);
+  });
+}
+
+function toggleEquityLayer() {
+  const btn = document.getElementById('btn-equity');
+  _equityOn = !_equityOn;
+  if (_equityOn) {
+    _refreshEquityLayer(0.35);
+    _equityLayer.addTo(map);
+    btn.classList.add('on');
+  } else {
+    map.removeLayer(_equityLayer);
+    btn.classList.remove('on');
+  }
+}
+
+// ── Planner Alert Panel ───────────────────────────────────────────────────
+function openPlannerAlert() {
+  const data = computeEquityData().filter(a => a.tier === 'urgent' || a.tier === 'plan');
+  const curYr = new Date().getFullYear();
+  document.getElementById('planner-alert-sub').textContent =
+    `${data.length} FSA${data.length !== 1 ? 's' : ''} need capacity planning attention`;
+
+  document.getElementById('planner-alert-list').innerHTML = data.length === 0
+    ? '<div style="color:#555;font-size:13px;text-align:center;padding:24px">No critical alerts at this time.</div>'
+    : data.map(a => {
+      const color = EQUITY_TIER_COLOR[a.tier];
+      const badge = a.tier === 'urgent' ? 'EXCEEDS 85% LIMIT' : `HITS LIMIT ${curYr + a.yearsToLimit}`;
+      const loadPct = ((a.currentRatio||0)*100).toFixed(0);
+      const headroom = a.headroomToLimit;
+      const upgradeYr = a.yearsToLimit ? Math.max(curYr+1, curYr + a.yearsToLimit - 1) : curYr + 1;
+      return `<div style="background:#0d1117;border:1px solid ${color}44;border-left:4px solid ${color};border-radius:8px;padding:12px;margin-bottom:10px">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px">
+          <div style="font-size:13px;font-weight:700;color:#fff">${a.area||a.fsa} <span style="font-size:10px;color:#555;font-weight:400">${a.fsa}</span></div>
+          <span style="font-size:9px;font-weight:700;color:${color};background:${color}22;border-radius:4px;padding:2px 7px;white-space:nowrap;margin-left:6px">${badge}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px">
+          <div style="text-align:center;background:#1a1d27;border-radius:6px;padding:6px 4px">
+            <div style="font-size:15px;font-weight:800;color:${color}">${loadPct}%</div>
+            <div style="font-size:9px;color:#555;margin-top:1px">Current load</div>
+          </div>
+          <div style="text-align:center;background:#1a1d27;border-radius:6px;padding:6px 4px">
+            <div style="font-size:15px;font-weight:800;color:#60a5fa">${(a.ev_count||0).toLocaleString()}</div>
+            <div style="font-size:9px;color:#555;margin-top:1px">EVs registered</div>
+          </div>
+          <div style="text-align:center;background:#1a1d27;border-radius:6px;padding:6px 4px">
+            <div style="font-size:15px;font-weight:800;color:${headroom<0?'#ef4444':'#f59e0b'}">${headroom} kW</div>
+            <div style="font-size:9px;color:#555;margin-top:1px">Headroom</div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:#94a3b8;margin-bottom:8px;line-height:1.55;background:#1a1d2799;border-radius:6px;padding:7px 9px">
+          ${a.tier === 'urgent'
+            ? `Feeder is at <b style="color:#ef4444">${loadPct}%</b> utilization — past the 85% N-1 planning limit. The grid can no longer absorb a single component failure at peak. Capacity action required.`
+            : `Feeder is projected to reach the 85% planning limit by <b style="color:#f97316">${curYr + a.yearsToLimit}</b> at baseline 35%/yr EV growth. Upgrade scoping should begin by ${upgradeYr} to stay ahead of demand.`
+          }
+        </div>
+        <div style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:5px">Recommended actions</div>
+        <div style="display:flex;flex-direction:column;gap:3px;margin-bottom:10px">
+          <div style="font-size:11px;color:#cbd5e1;background:#1a1d27;border-radius:5px;padding:5px 8px">⚡ Deploy DR Optimizer to shift EV peak load off-peak</div>
+          <div style="font-size:11px;color:#cbd5e1;background:#1a1d27;border-radius:5px;padding:5px 8px">🔋 Model buffer station impact to defer upgrade date</div>
+          <div style="font-size:11px;color:#cbd5e1;background:#1a1d27;border-radius:5px;padding:5px 8px">📋 Schedule feeder capacity review — target ${upgradeYr}</div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button onclick="prefillGridTool('${a.fsa}')" style="flex:1;background:#4ea8de22;color:#4ea8de;border:1px solid #4ea8de55;border-radius:6px;padding:6px;font-size:11px;font-weight:600;cursor:pointer">Open in Grid Tools →</button>
+          <button onclick="markAlertReviewed('${a.fsa}',this)" style="background:#1e2535;color:#666;border:1px solid #3e4460;border-radius:6px;padding:6px 10px;font-size:11px;cursor:pointer">✓ Reviewed</button>
+        </div>
+      </div>`;
+    }).join('');
+
+  document.getElementById('planner-alert-panel').classList.add('open');
+}
+
+function closePlannerAlert() {
+  document.getElementById('planner-alert-panel').classList.remove('open');
+}
+
+function prefillGridTool(fsa) {
+  ['dr-fsa','fc-fsa','st-fsa','bf-fsa'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = fsa;
+  });
+  closePlannerAlert();
+  showTab('grid');
+  if (fsaMarkers[fsa]) map.flyTo([fsaMarkers[fsa].area.latitude, fsaMarkers[fsa].area.longitude], 13, {duration:1.0});
+}
+
+function markAlertReviewed(fsa, btn) {
+  btn.textContent = '✓ Done';
+  btn.style.color = '#22c55e';
+  btn.style.borderColor = '#22c55e55';
+  btn.disabled = true;
+}
+
+// ── Policy Scenario ───────────────────────────────────────────────────────
+let _psChart = null;
+
+function runPolicyScenario() {
+  const rebateLevel  = parseInt(document.getElementById('ps-rebate').value) / 100;
+  const penaltyLevel = parseInt(document.getElementById('ps-penalty').value) / 100;
+  const elasticity   = parseFloat(document.getElementById('ps-elasticity').value);
+
+  // Max effect sizes — directionally calibrated, not empirically measured for Ontario
+  // Full rebate + max elasticity → +15pp CAGR; full ICE penalty → +10pp
+  const adjCagr = Math.min(0.35 + rebateLevel * elasticity * 0.15 + penaltyLevel * elasticity * 0.10, 0.80);
+
+  const baseTiers = computeEquityDataCagr(0.35);
+  const adjTiers  = computeEquityDataCagr(adjCagr);
+
+  const tierNames = ['urgent','plan','monitor','healthy'];
+  const baseCounts = {}, adjCounts = {};
+  tierNames.forEach(t => {
+    baseCounts[t] = baseTiers.filter(a => a.tier === t).length;
+    adjCounts[t]  = adjTiers.filter(a => a.tier === t).length;
+  });
+
+  // Summary insight
+  const addedRisk  = (adjCounts.urgent - baseCounts.urgent) + (adjCounts.plan - baseCounts.plan);
+  const cagrPct    = (adjCagr * 100).toFixed(0);
+  const insightEl  = document.getElementById('ps-insight');
+  let insightText  = `Policy mix lifts GTA-wide EV adoption to <b>${cagrPct}% CAGR</b> (from baseline 35%).`;
+  if (addedRisk > 0) {
+    insightText += ` <b style="color:#ef4444">${addedRisk} additional FSA${addedRisk>1?'s':''}</b> tip into planning-critical or urgent tiers — early capacity investment required.`;
+    insightEl.style.borderLeftColor = '#ef4444';
+  } else {
+    insightText += ` No additional FSAs cross planning thresholds — manageable with existing grid plans.`;
+    insightEl.style.borderLeftColor = '#a855f7';
+  }
+  insightEl.innerHTML = insightText;
+
+  // Tier comparison cards
+  const TIER_LABELS = { urgent:'Urgent', plan:'Plan', monitor:'Monitor', healthy:'Healthy' };
+  document.getElementById('ps-tier-compare').innerHTML = tierNames.map(t => {
+    const delta = adjCounts[t] - baseCounts[t];
+    const color = EQUITY_TIER_COLOR[t];
+    const isGoodTier = t === 'healthy';
+    const arrow = delta === 0 ? `<span style="color:#555">±0</span>`
+      : delta > 0
+        ? `<span style="color:${isGoodTier ? '#22c55e' : '#ef4444'}">+${delta}</span>`
+        : `<span style="color:${isGoodTier ? '#ef4444' : '#22c55e'}">${delta}</span>`;
+    return `<div style="background:#1a1d27;border:1px solid ${color}33;border-top:3px solid ${color};border-radius:8px;padding:8px;text-align:center">
+      <div style="font-size:10px;font-weight:700;color:${color};margin-bottom:4px">${TIER_LABELS[t]}</div>
+      <div style="font-size:14px;font-weight:800;color:#fff">${adjCounts[t]}</div>
+      <div style="font-size:11px;color:#555;margin-top:2px">${arrow} vs base</div>
+    </div>`;
+  }).join('');
+
+  // FSAs that moved to a worse tier
+  const tierOrder = { urgent:0, plan:1, monitor:2, healthy:3 };
+  const impacted = adjTiers.filter(a => {
+    const baseA = baseTiers.find(b => b.fsa === a.fsa);
+    return baseA && tierOrder[a.tier] < tierOrder[baseA.tier];
+  }).slice(0, 6);
+
+  document.getElementById('ps-impacted-list').innerHTML = impacted.length === 0
+    ? '<div style="font-size:12px;color:#555;padding:4px 0">No FSAs changed tiers under this policy mix.</div>'
+    : impacted.map(a => {
+      const baseA = baseTiers.find(b => b.fsa === a.fsa);
+      const fromTier = baseA?.tier || 'healthy';
+      return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #1e2535;font-size:12px">
+        <span style="width:8px;height:8px;border-radius:50%;background:${EQUITY_TIER_COLOR[a.tier]};flex-shrink:0;display:inline-block"></span>
+        <span style="flex:1;color:#e0e0e0">${a.area||a.fsa} <span style="color:#555;font-size:10px">${a.fsa}</span></span>
+        <span style="font-size:10px;color:${EQUITY_TIER_COLOR[fromTier]};font-weight:600">${fromTier}</span>
+        <span style="color:#555;font-size:10px">→</span>
+        <span style="font-size:10px;color:${EQUITY_TIER_COLOR[a.tier]};font-weight:700">${a.tier}</span>
+      </div>`;
+    }).join('');
+
+  // Refresh equity map if it's open, to show policy impact
+  if (_equityOn) _refreshEquityLayer(adjCagr);
+
+  // Open popup
+  ['gt-popup-dr','gt-popup-fc','gt-popup-st','gt-popup-bf','gt-popup-ps'].forEach(id => document.getElementById(id).style.display='none');
+  ['gt-popup-canvas-dr','gt-popup-canvas-fc','gt-popup-canvas-st','gt-popup-canvas-bf','gt-popup-canvas-ps'].forEach(id => document.getElementById(id).style.display='none');
+  document.getElementById('gt-popup-ps').style.display = 'block';
+  document.getElementById('gt-popup-canvas-ps').style.display = 'block';
+  document.getElementById('gt-chart-popup-title').textContent = `Policy Scenario — ${cagrPct}% CAGR`;
+  document.getElementById('gt-chart-popup').classList.add('open');
+
+  setTimeout(() => {
+    const ctx = document.getElementById('ps-chart').getContext('2d');
+    if (_psChart) _psChart.destroy();
+    _psChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ['Urgent','Plan','Monitor','Healthy'],
+        datasets: [
+          {
+            label: 'Baseline (35% CAGR)',
+            data: tierNames.map(t => baseCounts[t]),
+            backgroundColor: ['rgba(239,68,68,0.35)','rgba(249,115,22,0.35)','rgba(234,179,8,0.35)','rgba(34,197,94,0.35)'],
+            borderColor:     ['#ef4444','#f97316','#eab308','#22c55e'],
+            borderWidth: 1.5,
+          },
+          {
+            label: `Policy (${cagrPct}% CAGR)`,
+            data: tierNames.map(t => adjCounts[t]),
+            backgroundColor: ['rgba(239,68,68,0.8)','rgba(249,115,22,0.8)','rgba(234,179,8,0.8)','rgba(34,197,94,0.8)'],
+            borderColor:     ['#ef4444','#f97316','#eab308','#22c55e'],
+            borderWidth: 1.5,
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color:'#aaa', font:{size:9}, boxWidth:10 } } },
+        scales: {
+          x: { ticks:{ color:'#666', font:{size:9} }, grid:{ color:'#1e2535' } },
+          y: { ticks:{ color:'#666', font:{size:9} }, grid:{ color:'#1e2535' },
+               title:{ display:true, text:'Number of FSAs', color:'#666', font:{size:9} } }
+        }
+      }
+    });
+  }, 50);
+}
+
 window.addEventListener('load', () => {
   syncToggleStates();
   startAnomalyStream();
   setInterval(refreshAnomalyList, 300000);
   applyRole('utility');
+  renderEquityCard();
 });
 
 // ── Live availability layer ───────────────────────────────────────────────
@@ -1647,8 +2110,10 @@ function syncToggleStates() {
 
 // ── Grid Tools chip switcher ───────────────────────────────────────────────
 function switchGridTool(name) {
-  closeGtPopup();
-  ['dr','fc','an','rs','st','bf'].forEach(t => {
+  if (!document.getElementById('gt-chart-popup-sheet').classList.contains('minimized')) {
+    closeGtPopup();
+  }
+  ['dr','fc','an','rs','st','bf','ps'].forEach(t => {
     document.getElementById('gt-' + t).classList.toggle('active', t === name);
     document.getElementById('chip-' + t).classList.toggle('active', t === name);
   });
@@ -1663,6 +2128,13 @@ function clearGridTools() {
     if (el) el.value = '';
   });
   document.querySelectorAll('.gt-result').forEach(el => el.style.display = 'none');
+  // Reset policy sliders
+  const psRebate = document.getElementById('ps-rebate');
+  const psPenalty = document.getElementById('ps-penalty');
+  if (psRebate) { psRebate.value = 50; document.getElementById('ps-rebate-val').textContent = '50'; }
+  if (psPenalty) { psPenalty.value = 50; document.getElementById('ps-penalty-val').textContent = '50'; }
+  // Restore equity layer to baseline if it was showing policy view
+  if (_equityOn) _refreshEquityLayer(0.35);
   switchGridTool('dr');
 }
 
@@ -1707,7 +2179,19 @@ function renderRiskScan() {
 }
 
 function closeGtPopup() {
-  document.getElementById('gt-chart-popup').classList.remove('open');
+  const popup = document.getElementById('gt-chart-popup');
+  popup.classList.remove('open');
+  popup.classList.remove('gt-popup-minimized');
+  document.getElementById('gt-chart-popup-sheet').classList.remove('minimized');
+  document.getElementById('gt-chart-popup-min').textContent = '— Minimize';
+}
+function toggleGtMinimize() {
+  const popup = document.getElementById('gt-chart-popup');
+  const sheet = document.getElementById('gt-chart-popup-sheet');
+  const btn = document.getElementById('gt-chart-popup-min');
+  const minimized = sheet.classList.toggle('minimized');
+  popup.classList.toggle('gt-popup-minimized', minimized);
+  btn.textContent = minimized ? '⬆ Restore' : '— Minimize';
 }
 
 // ── Stress Test — organic growth sensitivity ───────────────────────────────
@@ -1748,6 +2232,18 @@ function runStressTest() {
   if (!area) return;
 
   const curYear = new Date().getFullYear();
+
+  // Overloaded FSA count stats
+  const totalOverloaded = AREAS.filter(a => (a.base_load_kw||0) / (a.feeder_capacity_kw||1) >= 1.0).length;
+  const currentRatio = (area.base_load_kw||0) / (area.feeder_capacity_kw||1);
+  const headroom = (area.feeder_capacity_kw||0) - (area.base_load_kw||0);
+  document.getElementById('st-overloaded-count').textContent = totalOverloaded;
+  const ratioEl = document.getElementById('st-current-ratio');
+  ratioEl.textContent = (currentRatio * 100).toFixed(1) + '%';
+  ratioEl.className = 'gt-stat-val' + (currentRatio >= 1.0 ? ' red' : currentRatio >= 0.85 ? '' : ' green');
+  const headEl = document.getElementById('st-headroom');
+  headEl.textContent = Math.round(headroom) + ' kW';
+  headEl.className = 'gt-stat-val' + (headroom < 0 ? ' red' : ' green');
 
   // Scenario cards
   const results = ST_SCENARIOS.map(s => {
@@ -1793,24 +2289,48 @@ function runStressTest() {
   }
 
   // Open popup
+  ['gt-popup-dr','gt-popup-fc','gt-popup-st','gt-popup-bf','gt-popup-ps'].forEach(id => document.getElementById(id).style.display='none');
+  ['gt-popup-canvas-dr','gt-popup-canvas-fc','gt-popup-canvas-st','gt-popup-canvas-bf','gt-popup-canvas-ps'].forEach(id => document.getElementById(id).style.display='none');
   document.getElementById('gt-popup-st').style.display = 'block';
-  document.getElementById('gt-popup-bf').style.display = 'none';
   document.getElementById('gt-popup-canvas-st').style.display = 'block';
-  document.getElementById('gt-popup-canvas-bf').style.display = 'none';
   document.getElementById('gt-chart-popup-title').textContent = `Growth Sensitivity — ${fsa}`;
   document.getElementById('gt-chart-popup').classList.add('open');
 
   setTimeout(() => {
     const years = Array.from({length: 11}, (_, i) => i);
-    const labels = years.map(y => y === 0 ? 'Now' : `+${y}yr`);
+    const yearLabels = years.map(y => String(curYear + y));
     const cap = years.map(() => area.feeder_capacity_kw);
+    const evMod = years.map(y => Math.round((area.ev_count||0) * Math.pow(1.35, y)));
+
+    // Draw risk deviation numbers on moderate scenario vs capacity
+    const riskPlugin = {
+      id: 'riskLabels',
+      afterDraw(chart) {
+        const { ctx: c } = chart;
+        const modMeta = chart.getDatasetMeta(1);
+        const modData = chart.data.datasets[1].data;
+        const capData = chart.data.datasets[3].data;
+        c.save();
+        c.font = 'bold 8px monospace';
+        c.textAlign = 'center';
+        [0, 2, 5, 8, 10].forEach(yi => {
+          const el = modMeta.data[yi];
+          if (!el) return;
+          const dev = modData[yi] - capData[yi];
+          c.fillStyle = dev > 0 ? '#ef4444' : '#4ade80';
+          c.fillText((dev > 0 ? '+' : '') + Math.round(dev) + ' kW', el.x, el.y - 7);
+        });
+        c.restore();
+      }
+    };
 
     const ctx = document.getElementById('st-chart').getContext('2d');
     if (_stChart) _stChart.destroy();
     _stChart = new Chart(ctx, {
       type: 'line',
+      plugins: [riskPlugin],
       data: {
-        labels,
+        labels: yearLabels,
         datasets: [
           ...ST_SCENARIOS.map(s => ({
             label: `${s.label} (${s.desc})`,
@@ -1818,18 +2338,28 @@ function runStressTest() {
             borderColor: s.color,
             borderWidth: s.key === 'moderate' ? 2.5 : 1.5,
             borderDash: s.key === 'moderate' ? [] : [4,3],
-            fill: false, tension: 0.3, pointRadius: 0,
+            fill: false, tension: 0.3,
+            pointRadius: s.key === 'moderate' ? 3 : 0,
+            yAxisID: 'y',
           })),
-          { label:'Feeder capacity', data:cap, borderColor:'#ef4444', borderWidth:1.5, borderDash:[6,3], fill:false, tension:0, pointRadius:0 }
+          { label: 'Feeder capacity', data: cap, borderColor: '#ef4444', borderWidth: 1.5, borderDash: [6,3], fill: false, tension: 0, pointRadius: 0, yAxisID: 'y' },
+          { label: 'EV count (moderate)', data: evMod, borderColor: '#60a5fa', borderWidth: 1, borderDash: [2,2], fill: false, tension: 0.3, pointRadius: 0, yAxisID: 'y2' }
         ]
       },
       options: {
-        responsive:true, maintainAspectRatio:true, aspectRatio:2,
-        plugins:{ legend:{ labels:{ color:'#aaa', font:{size:9}, boxWidth:10 } } },
-        scales:{
-          x:{ ticks:{ color:'#666', font:{size:9} }, grid:{ color:'#1e2535' } },
-          y:{ ticks:{ color:'#666', font:{size:9} }, grid:{ color:'#1e2535' },
-              title:{ display:true, text:'kW', color:'#666', font:{size:9} } }
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#aaa', font: { size: 9 }, boxWidth: 10 } } },
+        scales: {
+          x: { ticks: { color: '#666', font: { size: 9 } }, grid: { color: '#1e2535' } },
+          y: {
+            ticks: { color: '#666', font: { size: 9 } }, grid: { color: '#1e2535' },
+            title: { display: true, text: 'Power (kW)', color: '#666', font: { size: 9 } }
+          },
+          y2: {
+            position: 'right', grid: { drawOnChartArea: false },
+            ticks: { color: '#60a5fa', font: { size: 9 } },
+            title: { display: true, text: 'EV count', color: '#60a5fa', font: { size: 9 } }
+          }
         }
       }
     });
@@ -1873,6 +2403,28 @@ function runBufferImpact() {
   const cagr       = parseFloat(document.getElementById('bf-scenario').value) || 0.35;
   const curYear    = new Date().getFullYear();
 
+  // All-scenario comparison cards — proves model responds to growth rate
+  const bfScenarios = [
+    { label:'Conservative', cagr:0.20, color:'#22c55e', desc:'20%/yr' },
+    { label:'Moderate',     cagr:0.35, color:'#f59e0b', desc:'35%/yr' },
+    { label:'Aggressive',   cagr:0.50, color:'#ef4444', desc:'50%/yr' },
+  ];
+  document.getElementById('bf-scenario-cards').innerHTML = bfScenarios.map(s => {
+    const wo = _bfYearsToOverload(area, s.cagr, 0,          gridKw, peakKw);
+    const wi = _bfYearsToOverload(area, s.cagr, bufferFrac, gridKw, peakKw);
+    const g  = ((wi??10) - (wo??10)) * 12;
+    const woLbl = wo === null ? '10+yr' : `${curYear + wo}`;
+    const wiLbl = wi === null ? '10+yr' : `${curYear + wi}`;
+    const gainTxt = g <= 0 ? 'No gain' : g >= 120 ? '+10+yr' : `+${g}mo`;
+    const gainColor = g <= 0 ? '#555' : g >= 24 ? '#22c55e' : '#f59e0b';
+    return `<div style="background:#1a1d27;border:1px solid ${s.color}33;border-top:3px solid ${s.color};border-radius:8px;padding:8px;text-align:center">
+      <div style="font-size:11px;font-weight:700;color:#fff;margin-bottom:2px">${s.label}</div>
+      <div style="font-size:9px;color:#666;margin-bottom:6px">${s.desc}</div>
+      <div style="font-size:9px;color:#555;margin-bottom:4px">${woLbl} → ${wiLbl}</div>
+      <div style="font-size:14px;font-weight:800;color:${gainColor}">${gainTxt}</div>
+    </div>`;
+  }).join('');
+
   const woYrs = _bfYearsToOverload(area, cagr, 0,          gridKw, peakKw);
   const wiYrs = _bfYearsToOverload(area, cagr, bufferFrac, gridKw, peakKw);
 
@@ -1904,16 +2456,17 @@ function runBufferImpact() {
   }
 
   // Open popup
+  ['gt-popup-dr','gt-popup-fc','gt-popup-st','gt-popup-bf','gt-popup-ps'].forEach(id => document.getElementById(id).style.display='none');
+  ['gt-popup-canvas-dr','gt-popup-canvas-fc','gt-popup-canvas-st','gt-popup-canvas-bf','gt-popup-canvas-ps'].forEach(id => document.getElementById(id).style.display='none');
   document.getElementById('gt-popup-bf').style.display = 'block';
-  document.getElementById('gt-popup-st').style.display = 'none';
   document.getElementById('gt-popup-canvas-bf').style.display = 'block';
-  document.getElementById('gt-popup-canvas-st').style.display = 'none';
   document.getElementById('gt-chart-popup-title').textContent = `Buffer Impact — ${fsa}`;
   document.getElementById('gt-chart-popup').classList.add('open');
 
   setTimeout(() => {
+  const bfCurYear = new Date().getFullYear();
   const years  = Array.from({length:11}, (_,i) => i);
-  const labels = years.map(y => y === 0 ? 'Now' : `+${y}yr`);
+  const labels = years.map(y => String(bfCurYear + y));
   const cap    = years.map(() => area.feeder_capacity_kw);
 
   const ctx = document.getElementById('bf-chart').getContext('2d');
@@ -1937,12 +2490,12 @@ function runBufferImpact() {
       ]
     },
     options: {
-      responsive:true, maintainAspectRatio:true, aspectRatio:2,
+      responsive:true, maintainAspectRatio:false,
       plugins:{ legend:{ labels:{ color:'#aaa', font:{size:9}, boxWidth:10 } } },
       scales:{
         x:{ ticks:{ color:'#666', font:{size:9} }, grid:{ color:'#1e2535' } },
         y:{ ticks:{ color:'#666', font:{size:9} }, grid:{ color:'#1e2535' },
-            title:{ display:true, text:'kW', color:'#666', font:{size:9} } }
+            title:{ display:true, text:'Power (kW)', color:'#666', font:{size:9} } }
       }
     }
   });
@@ -1977,8 +2530,8 @@ async function runDemandResponse() {
   }
 
   // Open popup
-  ['gt-popup-dr','gt-popup-fc','gt-popup-st','gt-popup-bf'].forEach(id => document.getElementById(id).style.display='none');
-  ['gt-popup-canvas-dr','gt-popup-canvas-fc','gt-popup-canvas-st','gt-popup-canvas-bf'].forEach(id => document.getElementById(id).style.display='none');
+  ['gt-popup-dr','gt-popup-fc','gt-popup-st','gt-popup-bf','gt-popup-ps'].forEach(id => document.getElementById(id).style.display='none');
+  ['gt-popup-canvas-dr','gt-popup-canvas-fc','gt-popup-canvas-st','gt-popup-canvas-bf','gt-popup-canvas-ps'].forEach(id => document.getElementById(id).style.display='none');
   document.getElementById('gt-popup-dr').style.display = 'block';
   document.getElementById('gt-popup-canvas-dr').style.display = 'block';
   document.getElementById('gt-chart-popup-title').textContent = `DR Optimiser — ${document.getElementById('dr-fsa').value || 'All'}`;
@@ -2039,12 +2592,12 @@ async function runDemandResponse() {
       ]
     },
     options: {
-      responsive: true, maintainAspectRatio: true, aspectRatio: 2.5,
+      responsive: true, maintainAspectRatio: false,
       plugins: { legend: { labels: { color:'#aaa', font:{size:10}, boxWidth:10 } } },
       scales: {
         x: { stacked: true, ticks:{ color:'#666', font:{size:9}, maxRotation:45 }, grid:{color:'#1e2535'} },
         y: { stacked: true, ticks:{ color:'#666', font:{size:9} }, grid:{color:'#1e2535'},
-          title:{ display:true, text:'kW', color:'#666', font:{size:9} } }
+          title:{ display:true, text:'Power (kW)', color:'#666', font:{size:9} } }
       }
     }
   });
@@ -2073,8 +2626,8 @@ async function runForecast() {
   document.getElementById('fc-current-ratio').textContent = (d.current_ratio * 100).toFixed(0) + '%';
 
   // Open popup
-  ['gt-popup-dr','gt-popup-fc','gt-popup-st','gt-popup-bf'].forEach(id => document.getElementById(id).style.display='none');
-  ['gt-popup-canvas-dr','gt-popup-canvas-fc','gt-popup-canvas-st','gt-popup-canvas-bf'].forEach(id => document.getElementById(id).style.display='none');
+  ['gt-popup-dr','gt-popup-fc','gt-popup-st','gt-popup-bf','gt-popup-ps'].forEach(id => document.getElementById(id).style.display='none');
+  ['gt-popup-canvas-dr','gt-popup-canvas-fc','gt-popup-canvas-st','gt-popup-canvas-bf','gt-popup-canvas-ps'].forEach(id => document.getElementById(id).style.display='none');
   document.getElementById('gt-popup-fc').style.display = 'block';
   document.getElementById('gt-popup-canvas-fc').style.display = 'block';
   document.getElementById('gt-chart-popup-title').textContent = `Feeder Forecast — ${fsa}`;
@@ -2153,12 +2706,12 @@ async function runForecast() {
       ]
     },
     options: {
-      responsive: true, maintainAspectRatio: true, aspectRatio: 2.5,
+      responsive: true, maintainAspectRatio: false,
       plugins: { legend: { labels: { color:'#aaa', font:{size:9}, boxWidth:10 } } },
       scales: {
         x: { ticks:{ color:'#666', font:{size:9}, maxRotation:45 }, grid:{color:'#1e2535'} },
         y: { ticks:{ color:'#666', font:{size:9} }, grid:{color:'#1e2535'},
-          title:{ display:true, text:'kW', color:'#666', font:{size:9} } }
+          title:{ display:true, text:'Power (kW)', color:'#666', font:{size:9} } }
       }
     }
   });
@@ -2207,6 +2760,47 @@ async function refreshAnomalyList() {
     </div>`).join('');
 }
 
+// ── Location ──────────────────────────────────────────────────────────────
+let _userMarker = null;
+
+function locateUser(silent) {
+  if (!navigator.geolocation) {
+    document.getElementById('locate-status').textContent = 'Geolocation not supported by your browser.';
+    return;
+  }
+  const statusEl = document.getElementById('locate-status');
+  const btnEl    = document.getElementById('locate-btn');
+  if (statusEl) statusEl.textContent = 'Getting your location…';
+  if (btnEl)    btnEl.disabled = true;
+
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      _userLat = pos.coords.latitude;
+      _userLon = pos.coords.longitude;
+
+      // Drop/move a user pin on the map
+      if (_userMarker) map.removeLayer(_userMarker);
+      _userMarker = L.circleMarker([_userLat, _userLon], {
+        radius: 9, color: '#22c55e', fillColor: '#22c55e', fillOpacity: 0.9, weight: 2
+      }).bindTooltip('You are here').addTo(map);
+      map.flyTo([_userLat, _userLon], 13, {duration: 1.1});
+
+      if (statusEl) statusEl.textContent = `Location set — ${_userLat.toFixed(4)}, ${_userLon.toFixed(4)}`;
+      if (btnEl)    { btnEl.disabled = false; btnEl.textContent = '📍 Update location'; }
+
+      renderNearby();
+    },
+    err => {
+      const msg = err.code === 1 ? 'Location access denied — please allow in browser settings.'
+                : err.code === 2 ? 'Location unavailable.'
+                : 'Location timed out.';
+      if (statusEl) statusEl.textContent = msg;
+      if (btnEl)    btnEl.disabled = false;
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+  );
+}
+
 // ── Tab switching ─────────────────────────────────────────────────────────
 const TAB_VIEWS = ['overview','nearby','grid','station','machine','reports','profile'];
 function showTab(name) {
@@ -2219,18 +2813,34 @@ function showTab(name) {
   });
   if (name==='reports') loadReports();
   if (name==='grid') { refreshAnomalyList(); startAnomalyStream(); }
+  if (name==='nearby' && !_userLat) locateUser();
 }
 
 
 
 </script>
 
+<!-- Planner Alert Panel -->
+<div id="planner-alert-panel">
+  <div id="planner-alert-head">
+    <div>
+      <div style="font-size:14px;font-weight:700;color:#fff">Planning Alerts</div>
+      <div style="font-size:11px;color:#888;margin-top:2px" id="planner-alert-sub">FSAs needing capacity review</div>
+    </div>
+    <button onclick="closePlannerAlert()" style="background:none;border:none;color:#555;cursor:pointer;font-size:20px;padding:0;line-height:1">✕</button>
+  </div>
+  <div id="planner-alert-list"></div>
+</div>
+
 <!-- Grid Tools chart popup (bottom sheet) -->
 <div id="gt-chart-popup" onclick="if(event.target===this)closeGtPopup()">
   <div id="gt-chart-popup-sheet">
     <div id="gt-chart-popup-head">
       <span id="gt-chart-popup-title">Analysis</span>
-      <button id="gt-chart-popup-close" onclick="closeGtPopup()">✕ Close</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button id="gt-chart-popup-min" onclick="toggleGtMinimize()">— Minimize</button>
+        <button id="gt-chart-popup-close" onclick="closeGtPopup()">✕ Close</button>
+      </div>
     </div>
     <div id="gt-chart-popup-scroll">
       <!-- DR Optimizer content -->
@@ -2253,21 +2863,33 @@ function showTab(name) {
       </div>
       <!-- Stress Test content -->
       <div id="gt-popup-st" style="display:none">
+        <div class="gt-stats" id="st-top-stats" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:12px">
+          <div class="gt-stat"><div class="gt-stat-val red" id="st-overloaded-count">—</div><div class="gt-stat-key">FSAs overloaded now</div></div>
+          <div class="gt-stat"><div class="gt-stat-val" id="st-current-ratio">—</div><div class="gt-stat-key">This FSA load ratio</div></div>
+          <div class="gt-stat"><div class="gt-stat-val green" id="st-headroom">—</div><div class="gt-stat-key">Headroom (kW)</div></div>
+        </div>
         <div id="st-scenario-cards" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px"></div>
         <div class="gt-insight" id="st-insight"></div>
         <div class="gt-avoid" id="st-warn" style="margin-top:8px"></div>
       </div>
+      <!-- Policy Scenario content -->
+      <div id="gt-popup-ps" style="display:none">
+        <div class="gt-insight" id="ps-insight" style="border-left-color:#a855f7;margin-bottom:10px"></div>
+        <div style="font-size:10px;color:#666;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">FSA tier shift — baseline vs policy</div>
+        <div id="ps-tier-compare" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-bottom:12px"></div>
+        <div style="font-size:10px;color:#666;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Most impacted FSAs (tier changed)</div>
+        <div id="ps-impacted-list"></div>
+      </div>
       <!-- Buffer Impact content -->
       <div id="gt-popup-bf" style="display:none">
-        <div class="gt-insight" id="bf-insight"></div>
-        <div class="gt-stats">
-          <div class="gt-stat"><div class="gt-stat-val red" id="bf-without" style="font-size:14px">—</div><div class="gt-stat-key">Without buffers</div></div>
-          <div class="gt-stat"><div class="gt-stat-val green" id="bf-with" style="font-size:14px">—</div><div class="gt-stat-key">With buffers</div></div>
-          <div class="gt-stat"><div class="gt-stat-val" style="color:#f59e0b" id="bf-gained">—</div><div class="gt-stat-key">Months gained</div></div>
-        </div>
-        <div class="gt-stats" style="grid-template-columns:1fr 1fr;margin-top:-6px">
-          <div class="gt-stat"><div class="gt-stat-val green" id="bf-headroom" style="font-size:15px">—</div><div class="gt-stat-key">Headroom freed (kW)</div></div>
-          <div class="gt-stat"><div class="gt-stat-val green" id="bf-reduction" style="font-size:15px">—</div><div class="gt-stat-key">Peak load cut</div></div>
+        <div id="bf-scenario-cards" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px"></div>
+        <div class="gt-insight" id="bf-insight" style="margin-bottom:8px"></div>
+        <div class="gt-stats" style="grid-template-columns:repeat(5,1fr)">
+          <div class="gt-stat"><div class="gt-stat-val red" id="bf-without" style="font-size:13px">—</div><div class="gt-stat-key">Without</div></div>
+          <div class="gt-stat"><div class="gt-stat-val green" id="bf-with" style="font-size:13px">—</div><div class="gt-stat-key">With buffers</div></div>
+          <div class="gt-stat"><div class="gt-stat-val" style="color:#f59e0b;font-size:13px" id="bf-gained">—</div><div class="gt-stat-key">Gained</div></div>
+          <div class="gt-stat"><div class="gt-stat-val green" id="bf-headroom" style="font-size:13px">—</div><div class="gt-stat-key">Headroom kW</div></div>
+          <div class="gt-stat"><div class="gt-stat-val green" id="bf-reduction" style="font-size:13px">—</div><div class="gt-stat-key">Peak cut</div></div>
         </div>
       </div>
     </div>
@@ -2290,7 +2912,12 @@ function showTab(name) {
       <!-- Buffer Impact chart -->
       <div id="gt-popup-canvas-bf" style="display:none">
         <div class="gt-chart-label">10-year load trajectory</div>
-        <div class="gt-popup-chart-box"><canvas id="bf-chart"></canvas></div>
+        <div class="gt-popup-chart-box" style="height:220px"><canvas id="bf-chart"></canvas></div>
+      </div>
+      <!-- Policy Scenario chart -->
+      <div id="gt-popup-canvas-ps" style="display:none">
+        <div class="gt-chart-label">FSA tier distribution — baseline vs policy</div>
+        <div class="gt-popup-chart-box" style="height:200px"><canvas id="ps-chart"></canvas></div>
       </div>
     </div>
   </div>
